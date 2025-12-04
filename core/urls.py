@@ -17,4 +17,9 @@ urlpatterns = [
     # dashboard paths
     path('dashboard/', views.admindashboard, name='dashboard'),
     path('hemloo/', views.dashboard_dd, name='dashboard_dd'),
+
+
+    # upload Receipts and Stickers imgs
+    path('receipts/', views.upload_receipts, name='upload_receipts'),
+    path('stickers/', views.upload_stickers, name='upload_stickers'),
 ]

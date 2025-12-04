@@ -23,7 +23,11 @@ from datetime import datetime
 import random
 import json
 import re
+from django.utils.timezone import now
 from core.models import *
+from django.core.files.base import ContentFile
+from core.validators import validate_multiple_images
+from core.preprocessing import preprocess_image
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
@@ -379,3 +383,101 @@ def dashboard_dd(request):
         return HttpResponseForbidden("Access Denied")
     
     return HttpResponse("Welcome to the User Dashboard")
+
+
+
+
+def get_session_user(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return None, JsonResponse({"success": False, "error": "User not logged in."}, status=401)
+    try:
+        user = User.objects.get(id=user_id)
+        return user, None
+    except User.DoesNotExist:
+        return None, JsonResponse({"success": False, "error": "User not found."}, status=404)
+    
+
+
+
+
+
+
+
+
+# Upload Receipts and Stickers Views
+@csrf_exempt
+def upload_receipts(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    user, err_response = get_session_user(request)
+    if err_response:
+        return err_response
+
+    files = request.FILES.getlist("files")
+    if not files:
+        return JsonResponse({"success": False, "error": "No files provided."}, status=400)
+
+    # --- VALIDATE FILES ---
+    try:
+        validate_multiple_images(files)
+    except Exception as e:
+        return JsonResponse({"success": False, "errors": e.messages}, status=400)
+
+    saved_ids = []
+    for file in files:
+        processed_file = preprocess_image(file)  # Returns BytesIO or file-like object
+        r = receipts(
+            user=user,
+            original_filename=file.name,
+            file_size=file.size,
+            year=now().year,
+            month=now().month
+        )
+        r.image_path.save(file.name, ContentFile(processed_file.read()), save=True)
+        saved_ids.append(r.id)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Receipts uploaded & processed successfully.",
+        "ids": saved_ids
+    })
+
+
+@csrf_exempt
+def upload_stickers(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    user, err_response = get_session_user(request)
+    if err_response:
+        return err_response
+
+    files = request.FILES.getlist("files")
+    if not files:
+        return JsonResponse({"success": False, "error": "No files provided."}, status=400)
+
+    try:
+        validate_multiple_images(files)
+    except Exception as e:
+        return JsonResponse({"success": False, "errors": e.messages}, status=400)
+
+    saved_ids = []
+    for file in files:
+        processed_file = preprocess_image(file)
+        s = stickers(
+            user=user,
+            original_filename=file.name,
+            file_size=file.size,
+            year=now().year,
+            month=now().month
+        )
+        s.image_path.save(file.name, ContentFile(processed_file.read()), save=True)
+        saved_ids.append(s.id)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Stickers uploaded & processed successfully.",
+        "ids": saved_ids
+    })

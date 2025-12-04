@@ -247,158 +247,120 @@
 </style>
 
 <script>
-    // Note: The actual file upload logic should be handled by your backend framework (e.g., Django views).
-    // This JS handles preview, drag/drop, and clear on upload. Add AJAX for real upload.
+document.addEventListener("DOMContentLoaded", function () {
 
-    document.addEventListener("DOMContentLoaded", function () {
-        // Helper function to display files in preview
-        function displayFiles(files, listId, previewId) {
-            const fileList = document.getElementById(listId);
-            fileList.innerHTML = ''; // Clear previous
-            Array.from(files).forEach((file, index) => {
-                const li = document.createElement('li');
-                li.className = 'd-flex align-items-center justify-content-between mb-2';
-                li.innerHTML = `
-                    <span><i class="ri-file-line me-2 text-muted"></i> ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    <button type="button" class="btn btn-sm btn-danger rounded-circle" onclick="removeFile(${index}, '${listId}')"><i class="ri-close-line"></i></button>
-                `;
-                fileList.appendChild(li);
-            });
-            document.getElementById(previewId).style.display = fileList.children.length > 0 ? 'block' : 'none';
-        }
+    // --------------------------
+    // 📌 File Preview Helper
+    // --------------------------
+    function displayFiles(files, listId, previewId) {
+        const fileList = document.getElementById(listId);
+        fileList.innerHTML = '';
 
-        // Remove file from preview
-        window.removeFile = function(index, listId) {
-            const inputId = listId === 'receiptFileList' ? 'receiptFileInput' : 'stickerFileInput';
-            const input = document.getElementById(inputId);
-            const dt = new DataTransfer();
-            Array.from(input.files).forEach((file, i) => {
-                if (i !== index) dt.items.add(file);
-            });
-            input.files = dt.files;
-            displayFiles(input.files, listId, listId.replace('FileList', 'FilePreview'));
-        };
-
-        // Handle file selection (button or drop)
-        function handleFiles(files, inputId, listId, previewId) {
-            const input = document.getElementById(inputId);
-            const dt = new DataTransfer();
-            Array.from(input.files).forEach(file => dt.items.add(file)); // Existing files
-            Array.from(files).forEach(file => {
-                if (file.size > 10 * 1024 * 1024) { // 10MB limit for receipts (apply to both for simplicity)
-                    alert(`${file.name} exceeds 10MB limit!`);
-                    return;
-                }
-                dt.items.add(file);
-            });
-            input.files = dt.files;
-            displayFiles(input.files, listId, previewId);
-        }
-
-        // Receipt Section
-        const receiptInput = document.getElementById('receiptFileInput');
-        receiptInput.addEventListener('change', () => displayFiles(receiptInput.files, 'receiptFileList', 'receiptFilePreview'));
-
-        const receiptDropzone = document.getElementById('receiptDropzone');
-        receiptDropzone.addEventListener('dragover', e => e.preventDefault());
-        receiptDropzone.addEventListener('drop', e => {
-            e.preventDefault();
-            handleFiles(e.dataTransfer.files, 'receiptFileInput', 'receiptFileList', 'receiptFilePreview');
+        Array.from(files).forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'd-flex align-items-center justify-content-between mb-2';
+            li.innerHTML = `
+                <span><i class="ri-file-line me-2 text-muted"></i> ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                <button type="button" class="btn btn-sm btn-danger rounded-circle" onclick="removeFile(${index}, '${listId}')"><i class="ri-close-line"></i></button>
+            `;
+            fileList.appendChild(li);
         });
 
-        receiptDropzone.addEventListener('click', () => receiptInput.click());
+        document.getElementById(previewId).style.display =
+            fileList.children.length > 0 ? 'block' : 'none';
+    }
 
-        document.getElementById('receiptUploadBtn').addEventListener('click', () => {
-            if (receiptInput.files.length === 0) {
-                alert('No files selected!');
-                return;
-            }
-            // Add AJAX to send files to backend
-            const formData = new FormData();
-            Array.from(receiptInput.files).forEach(file => {
-                formData.append('files', file);
-            });
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-            fetch('/receipts/', {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    alert('Uploaded successfully!');
-                    receiptInput.value = ''; // Clear input
-                    displayFiles([], 'receiptFileList', 'receiptFilePreview'); // Clear preview
-                } else {
-                    alert('Upload failed.');
-                }
-            }).catch(error => {
-                alert('Error: ' + error);
-            });
+    // --------------------------
+    // 📌 Remove File
+    // --------------------------
+    window.removeFile = function (index, listId) {
+        const inputId = listId === 'receiptFileList'
+            ? 'receiptFileInput'
+            : 'stickerFileInput';
+
+        const input = document.getElementById(inputId);
+        const dt = new DataTransfer();
+
+        Array.from(input.files).forEach((file, i) => {
+            if (i !== index) dt.items.add(file);
         });
 
-        // Sticker Section
-        const stickerInput = document.getElementById('stickerFileInput');
-        stickerInput.addEventListener('change', () => displayFiles(stickerInput.files, 'stickerFileList', 'stickerFilePreview'));
+        input.files = dt.files;
+        displayFiles(dt.files, listId, listId.replace("List", "Preview"));
+    };
 
-        const stickerDropzone = document.getElementById('stickerDropzone');
-        stickerDropzone.addEventListener('dragover', e => e.preventDefault());
-        stickerDropzone.addEventListener('drop', e => {
-            e.preventDefault();
-            handleFiles(e.dataTransfer.files, 'stickerFileInput', 'stickerFileList', 'stickerFilePreview');
-        });
+    // --------------------------
+    // 📌 Handle Drag/Drop & File Select
+    // --------------------------
+    function handleFiles(files, inputId, listId, previewId) {
+        const input = document.getElementById(inputId);
+        const dt = new DataTransfer();
 
-        stickerDropzone.addEventListener('click', () => stickerInput.click());
+        Array.from(input.files).forEach(file => dt.items.add(file));
+        Array.from(files).forEach(file => dt.items.add(file));
 
-        document.getElementById('stickerUploadBtn').addEventListener('click', () => {
-            if (stickerInput.files.length === 0) {
-                alert('No files selected!');
-                return;
-            }
-            // Add AJAX to send files to backend
-            const formData = new FormData();
-            Array.from(stickerInput.files).forEach(file => {
-                formData.append('files', file);
-            });
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-            fetch('/stickers/', {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    alert('Uploaded successfully!');
-                    stickerInput.value = ''; // Clear input
-                    displayFiles([], 'stickerFileList', 'stickerFilePreview'); // Clear preview
-                } else {
-                    alert('Upload failed.');
-                }
-            }).catch(error => {
-                alert('Error: ' + error);
-            });
-        });
+        input.files = dt.files;
+        displayFiles(dt.files, listId, previewId);
+    }
 
-        // Dropzone Highlight Effects (Improved)
-        ['receiptDropzone', 'stickerDropzone'].forEach(id => {
-            const zone = document.getElementById(id).querySelector('.dz-message');
-            const isReceipt = id === 'receiptDropzone';
-            const baseBg = isReceipt ? '#f8faff' : '#f1fdf6';
-            const hoverBg = isReceipt ? '#e8f0fe' : '#e8fdf5';
-            
-            ['dragover', 'dragenter'].forEach(evt => {
-                zone.addEventListener(evt, e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    zone.style.backgroundColor = hoverBg;
-                });
-            });
-            
-            ['dragleave', 'drop'].forEach(evt => {
-                zone.addEventListener(evt, e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    zone.style.backgroundColor = baseBg;
-                });
-            });
-        });
+    // --------------------------
+    // 📌 Upload Function
+    // --------------------------
+    function uploadFiles(inputId, url) {
+        const input = document.getElementById(inputId);
+        if (input.files.length === 0) return alert("No files selected!");
+
+        const formData = new FormData();
+        Array.from(input.files).forEach(file => formData.append("files", file));
+        formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+        fetch(url, { method: "POST", body: formData })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || "Uploaded!");
+
+                input.value = "";
+                displayFiles([], inputId.replace("Input", "List"), inputId.replace("Input", "Preview"));
+            })
+            .catch(err => alert("Error: " + err));
+    }
+
+    // --------------------------
+    // Receipt Section
+    // --------------------------
+    const rInput = document.getElementById("receiptFileInput");
+    document.getElementById("receiptDropzone").onclick = () => rInput.click();
+    rInput.addEventListener("change", () => displayFiles(rInput.files, "receiptFileList", "receiptFilePreview"));
+
+    document.getElementById("receiptUploadBtn")
+        .addEventListener("click", () => uploadFiles("receiptFileInput", "/receipts/"));
+
+    // Drag/drop
+    const rDrop = document.getElementById("receiptDropzone");
+    rDrop.addEventListener("dragover", e => e.preventDefault());
+    rDrop.addEventListener("drop", e => {
+        e.preventDefault();
+        handleFiles(e.dataTransfer.files, "receiptFileInput", "receiptFileList", "receiptFilePreview");
     });
+
+    // --------------------------
+    // Sticker Section
+    // --------------------------
+    const sInput = document.getElementById("stickerFileInput");
+    document.getElementById("stickerDropzone").onclick = () => sInput.click();
+    sInput.addEventListener("change", () => displayFiles(sInput.files, "stickerFileList", "stickerFilePreview"));
+
+    document.getElementById("stickerUploadBtn")
+        .addEventListener("click", () => uploadFiles("stickerFileInput", "/stickers/"));
+
+    // Drag/drop
+    const sDrop = document.getElementById("stickerDropzone");
+    sDrop.addEventListener("dragover", e => e.preventDefault());
+    sDrop.addEventListener("drop", e => {
+        e.preventDefault();
+        handleFiles(e.dataTransfer.files, "stickerFileInput", "stickerFileList", "stickerFilePreview");
+    });
+});
 </script>
 
 {% endblock %}
