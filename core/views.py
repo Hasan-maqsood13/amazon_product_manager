@@ -23,7 +23,7 @@ from datetime import datetime
 import random
 import json
 import re
-
+from core.models import *
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
@@ -32,3 +32,350 @@ def generate_verification_code(length=4):
 # Create your views here.
 def home(request):
     return HttpResponse("Welcome to the Home Page")
+
+
+# Authentication Views
+def register(request):
+    if request.method == 'POST':
+        username = request.POST.get('username').strip()
+        email = request.POST.get('email').strip()
+        password = request.POST.get('password').strip()
+
+        errors = {}
+
+        if not username:
+            errors['name'] = "Name is required."
+        elif not re.match(r'^[A-Za-z ]+$', username):
+            errors['name'] = "Name can only contain letters and spaces."
+        elif User.objects.filter(username=username).exists():
+            errors['name'] = "This username is already taken."
+
+        if not email:
+            errors['email'] = "Email is required."
+        elif User.objects.filter(email=email).exists():
+            errors['email'] = "This email is already registered."
+
+        if not password:
+            errors['password'] = "Password is required."
+        else:
+            if len(password) < 8:
+                errors['password'] = "Password must be at least 8 characters long."
+            elif not re.search(r'[A-Z]', password):
+                errors['password'] = "Password must contain at least one uppercase letter."
+            elif not re.search(r'[a-z]', password):
+                errors['password'] = "Password must contain at least one lowercase letter."
+            elif not re.search(r'\d', password):
+                errors['password'] = "Password must contain at least one digit."
+            elif not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+                errors['password'] = "Password must contain at least one special character."
+
+        if errors:
+            return JsonResponse({'success': False, 'errors': errors})
+
+        try:
+            verification_code = generate_verification_code()
+
+            user = User.objects.create(
+                username=username,
+                email=email,
+                password=make_password(password),
+                verification_token=verification_code
+            )
+
+            # send_mail(
+            #     'Verify Your Email',
+            #     f'Hello {user.username},\n\nThank you for registering!\nYour verification code is: {verification_code}',
+            #     'hasanmaqsood13@gmail.com',
+            #     [user.email],
+            #     fail_silently=False,
+            # )
+
+            request.session['verification_email'] = email
+            request.session['user_id'] = user.id
+
+            next_url = f"/verify-email/?email={user.email}"
+
+            return JsonResponse({'success': True, 'next_url': next_url})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'errors': {'general': str(e)}})
+
+    return render(request, 'register.html')
+
+
+def emailverification(request):
+    if 'verification_email' not in request.session:
+        return redirect('register')
+
+    if request.method == 'POST':
+        d1 = request.POST.get('dijit1', '').strip()
+        d2 = request.POST.get('dijit2', '').strip()
+        d3 = request.POST.get('dijit3', '').strip()
+        d4 = request.POST.get('dijit4', '').strip()
+        
+        entered_otp = d1 + d2 + d3 + d4
+
+        if len(entered_otp) != 4 or not entered_otp.isdigit():
+            return JsonResponse({
+                'success': False,
+                'message': 'Please enter a valid 4-digit code.'
+            })
+
+        verification_email = request.session.get('verification_email')  
+        if not verification_email:
+            return JsonResponse({
+                'success': False,
+                'message': 'Session expired. Please register again.'
+            })
+
+        try:
+            user = User.objects.get(email=verification_email)
+
+            if user.verification_token == entered_otp:
+                user.is_active = True
+                user.is_verified = True
+                user.verification_token = None 
+                user.save()
+
+                if 'verification_email' in request.session:
+                    del request.session['verification_email']
+                if 'user_id' in request.session:
+                    del request.session['user_id']
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Congratulations! Your account is now verified.',
+                    'redirect_url': '/login'
+                })
+
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid OTP. Please try again.'
+                })
+
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'User not found. Please register again.'
+            })
+
+    return render(request, 'verify_email.html')
+
+
+def resend_verification(request):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'message': 'Session expired.'})
+
+        try:
+            user = User.objects.get(id=user_id)
+            new_code = generate_verification_code()
+            user.verification_token = new_code
+            user.save()
+
+            send_mail(
+                'Verify Your Email',
+                f'Hello {user.username},\n\nThank you for registering!\nYour verification code is: {new_code}',
+                'hasanmaqsood13@gmail.com',
+                [user.email],
+                fail_silently=False,
+            )
+
+            return JsonResponse({'success': True, 'message': 'New verification code sent.'})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'User not found.'})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request.'})
+
+def login(request):
+    request.session.flush()
+    
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        try:
+            user = User.objects.get(email=email)
+            if not check_password(password, user.password):
+                return JsonResponse({'success': False, 'message': 'Invalid password.'})
+
+            if not user.is_verified:
+                return JsonResponse({'success': False, 'message': 'Please verify your email first.'})
+            if not user.is_active:
+                return JsonResponse({'success': False, 'message': 'Account deactivated.'})
+
+            user.last_login = timezone.now()
+            user.save()
+
+            request.session['user_id'] = user.id
+            request.session['username'] = user.username
+            request.session['role'] = user.role
+
+
+            next_url = "/dashboard/" if user.role == "admin" else "/hemloo/"
+            return JsonResponse({'success': True, 'next_url': next_url})
+
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Invalid email.'})
+
+    return render(request, 'login.html')
+
+def forgotpassword(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+
+        try:
+            user = User.objects.get(email=email)
+
+            reset_token = generate_verification_code()
+            user.verification_token = reset_token
+            user.is_verified = False
+            user.save()
+
+            request.session['reset_email'] = email
+            request.session['user_id'] = user.id
+
+            next_url = f"/email-verify/?email={user.email}"
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Password reset instructions sent to your email.',
+                'next_url': next_url,
+            })
+
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'No account found with this email address.'
+            })
+    return render(request, 'forgotpassword.html')
+
+def forgotpasswordemailverify(request):
+    if 'reset_email' not in request.session:
+        return redirect('forgotpassword')
+    
+    if request.method == 'POST':
+        dijit1 = request.POST.get('dijit1', '')
+        dijit2 = request.POST.get('dijit2', '')
+        dijit3 = request.POST.get('dijit3', '')
+        dijit4 = request.POST.get('dijit4', '')
+        otp = dijit1 + dijit2 + dijit3 + dijit4
+
+        if not all([dijit1, dijit2, dijit3, dijit4]):
+            return JsonResponse({'success': False, 'message': 'Please enter all digits.'})
+
+        user_email = request.session.get('reset_email')
+        if not user_email:
+            return JsonResponse({'success': False, 'message': "Session expired. Please sign up again."})
+
+        try:
+            user = User.objects.get(email=user_email)
+            if user.verification_token == otp:
+                user.is_verified = True
+                user.save()
+
+                if 'reset_email' in request.session:
+                    del request.session['reset_email']
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Email verified successfully!',
+                    'redirect_url': '/reset-password/'
+                })
+            else:
+                return JsonResponse({'success': False, 'message': 'Invalid verification code.'})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'User not found.'})
+    
+    return render(request, 'forgotpasswordemailverify.html')
+
+
+def resetpassword(request):
+    if 'user_id' not in request.session:
+        return redirect('forgotpassword')
+    
+    if request.method == 'POST':
+        new_password = request.POST.get('newPassword')
+        confirm_password = request.POST.get('confirmPassword')
+
+        user_id = request.session.get('user_id')
+
+        if not user_id:
+            return JsonResponse({'success': False, 'message': 'Session expired. Please try again.'})
+
+        if not new_password or not confirm_password:
+            return JsonResponse({'success': False, 'message': 'All fields are required.'})
+
+        if new_password != confirm_password:
+            return JsonResponse({'success': False, 'message': 'Passwords do not match.'})
+
+        if len(new_password) < 8:
+            return JsonResponse({'success': False, 'message': 'Password must be at least 8 characters long.'})
+
+        try:
+            user = User.objects.get(id=user_id)
+            user.password = make_password(new_password)
+            user.save()
+
+            del request.session['user_id']
+            if 'reset_email' in request.session:
+                del request.session['reset_email']
+
+            return JsonResponse({'success': True, 'message': 'Password reset successfully.', 'redirect_url': '/login'})
+
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'User not found.'})  
+
+    return render(request, 'resetpassword.html')
+
+def logout(request):
+    try:
+        request.session.flush()   
+        
+        messages.success(request, "You have been logged out successfully.")
+        return redirect('login')
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Dashboard Views
+def admindashboard(request):
+    user_id = request.session.get('user_id')
+
+    if not user_id:
+        return redirect('login')
+
+    user = User.objects.get(id=user_id)
+
+    if not user.is_verified or not user.is_active or user.role != "admin":
+        return HttpResponseForbidden("Access Denied")
+    return render(request, 'admindashboard.html')
+
+
+
+def dashboard_dd(request):
+    user_id = request.session.get('user_id')
+
+    if not user_id:
+        return redirect('login')
+
+    user = User.objects.get(id=user_id)
+
+    if not user.is_verified or not user.is_active or user.role != "user":
+        return HttpResponseForbidden("Access Denied")
+    
+    return HttpResponse("Welcome to the User Dashboard")

@@ -1,0 +1,285 @@
+{% load static %}
+<html lang="en" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg"
+    data-sidebar-image="none" data-preloader="disable" data-theme="default" data-theme-colors="default">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Sign Up | HR-MS - CentumLogics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta content="Premium Multipurpose Admin &amp; Dashboard Template" name="description" />
+    <meta content="Themesbrand" name="author" />
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}" />
+
+    <!-- Layout config Js -->
+    <script src="{% static 'assets/js/layout.js' %}"></script>
+    <!-- Bootstrap Css -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- Icons Css -->
+    <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- App Css-->
+    <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- custom Css-->
+    <link href="{% static 'assets/css/custom.min.css' %}" rel="stylesheet" type="text/css" />
+
+    <style>
+        .invalid {
+            color: red;
+        }
+
+        .spinner-border {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            vertical-align: text-bottom;
+            border: 0.15em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border 0.75s linear infinite;
+        }
+
+        #signup-btn {
+            position: relative;
+        }
+
+        #signup-spinner {
+            position: absolute;
+            top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-page-wrapper pt-5">
+        <!-- auth page bg -->
+        <div class="auth-one-bg-position auth-one-bg" id="auth-particles">
+            <div class="bg-overlay"></div>
+
+            <div class="shape">
+                <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink"
+                    viewBox="0 0 1440 120">
+                    <path d="M 0,36 C 144,53.6 432,123.2 720,124 C 1008,124.8 1296,56.8 1440,40L1440 140L0 140z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- auth page content -->
+        <div class="auth-page-content">
+            <div class="container">
+                <!-- end row -->
+                <div class="row justify-content-center">
+                    <div class="col-md-8 col-lg-6 col-xl-5">
+                        <div class="card mt-4 card-bg-fill">
+                            <div class="card-body p-4">
+                                <div class="text-center mt-2">
+                                    <h5 class="text-primary">Create New Account</h5>
+                                    <p class="text-muted">Amazone Inventory Tracking Management System</p>
+                                </div>
+                                <div class="p-2 mt-4">
+                                    <form class="needs-validation" novalidate="" id="signupForm">
+                                        {% csrf_token %}
+
+
+                                        <div class="mb-3">
+                                            <label for="username" class="form-label">Username <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" name="username" id="username"
+                                                placeholder="Enter username" required="" />
+                                            {% if errors.name %}
+                                            <div class="text-danger mt-1">{{ errors.name }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="useremail" class="form-label">Email <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="email" class="form-control" name="email" id="useremail"
+                                                placeholder="Enter email address" required="" />
+                                            {% if errors.email %}
+                                            <div class="text-danger mt-1">{{ errors.email }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="password-input">Password</label>
+                                            <div class="position-relative auth-pass-inputgroup">
+                                                <input type="password" class="form-control pe-5 password-input"
+                                                    onpaste="return false" placeholder="Enter password"
+                                                    id="password-input" name="password" aria-describedby="passwordInput"
+                                                    pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" required="" />
+                                                {% if errors.password %}
+                                                <div class="text-danger mt-1">{{ errors.password }}</div>
+                                                {% endif %}
+                                                <button
+                                                    class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon material-shadow-none"
+                                                    type="button" id="password-addon">
+                                                    <i class="ri-eye-fill align-middle"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div id="password-contain" class="p-3 bg-light mb-2 rounded">
+                                            <h5 class="fs-13">Password must contain:</h5>
+                                            <p id="pass-length" class="invalid fs-12 mb-2">
+                                                Minimum <b>8 characters</b>
+                                            </p>
+                                            <p id="pass-lower" class="invalid fs-12 mb-2">
+                                                At <b>lowercase</b> letter (a-z)
+                                            </p>
+                                            <p id="pass-upper" class="invalid fs-12 mb-2">
+                                                At least <b>uppercase</b> letter (A-Z)
+                                            </p>
+                                            <p id="pass-number" class="invalid fs-12 mb-0">
+                                                A least <b>number</b> (0-9)
+                                            </p>
+                                        </div>
+
+                                        <div class="mt-4">
+
+                                            <button type="submit" id="signup-btn" class="btn btn-success w-100"
+                                                name="register">
+                                                <span id="signup-spinner"
+                                                    class="spinner-border spinner-border-sm text-white d-none me-4"
+                                                    role="status" aria-hidden="true"></span>
+                                                <span id="signup-text">Sign Up</span>
+                                            </button>
+                                        </div>
+
+                                        <div class="mt-4 text-center">
+                                            <p class="mb-0">
+                                                Already have an account ?
+                                                <a href="{% url 'login' %}"
+                                                    class="fw-semibold text-primary text-decoration-underline">
+                                                    Signin
+                                                </a>
+                                            </p>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <!-- end card body -->
+                        </div>
+                        <!-- end card -->
+                    </div>
+                </div>
+                <!-- end row -->
+            </div>
+            <!-- end container -->
+        </div>
+        <!-- end auth page content -->
+
+        <!-- footer -->
+        <!-- end Footer -->
+    </div>
+    <!-- end auth-page-wrapper -->
+
+    <!-- JAVASCRIPT -->
+    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+    <script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
+    <script src="{% static 'assets/js/plugins.js' %}"></script>
+
+    <!-- particles js -->
+    <script src="{% static 'assets/libs/particles.js/particles.js' %}"></script>
+    <!-- particles app js -->
+    <script src="{% static 'assets/js/pages/particles.app.js' %}"></script>
+    <!-- validation init -->
+    <script src="{% static 'assets/js/pages/form-validation.init.js' %}"></script>
+    <!-- password create init -->
+    <script src="{% static 'assets/js/pages/passowrd-create.init.js' %}"></script>
+
+    <!-- jQuery CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Sweet alert -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // CSRF token setup...
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        $.ajaxSetup({
+            headers: { 'X-CSRFToken': csrftoken }
+        });
+
+        $(document).ready(function () {
+            $('#signupForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Step 1: Remove all previous error messages and invalid classes
+                $('.text-danger.mt-1').remove();  // Yeh purane errors hata dega
+                $('.form-control').removeClass('is-invalid');
+
+                $('#signup-spinner').removeClass('d-none');
+                $('#signup-text').text('Loading...').removeClass('invisible').addClass('ms-4');
+                $('#signup-btn').prop('disabled', true);
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{% url "register" %}',
+                    data: $(this).serialize(),
+                    success: function (response) {
+                        $('#signup-spinner').addClass('d-none');
+                        $('#signup-text').text('Sign Up').removeClass('ms-4');
+                        $('#signup-btn').prop('disabled', false);
+
+                        if (response.success) {
+                            Swal.fire({
+                                title: 'Account Created!',
+                                text: 'Please check your email to verify your account.',
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then(() => {
+                                window.location.href = response.next_url;
+                            });
+                        } else {
+                            // Step 2: Show only new errors (purane already hat chuke hain)
+                            for (let field in response.errors) {
+                                let input = $(`[name="${field}"]`);
+                                input.addClass('is-invalid');
+                                input.after(`<div class="text-danger mt-1">${response.errors[field]}</div>`);
+                            }
+
+                            Swal.fire({
+                                icon: "error",
+                                title: "Validation Error",
+                                text: "Please correct the highlighted errors.",
+                            });
+                        }
+                    },
+                    error: function () {
+                        $('#signup-spinner').addClass('d-none');
+                        $('#signup-text').text('Sign Up').removeClass('ms-4');
+                        $('#signup-btn').prop('disabled', false);
+
+                        Swal.fire({
+                            icon: "error",
+                            title: "Server Error",
+                            text: "Something went wrong! Please try again later.",
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

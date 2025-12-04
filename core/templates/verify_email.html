@@ -1,0 +1,261 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg"
+    data-sidebar-image="none" data-preloader="disable" data-theme="default" data-theme-colors="default">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Two Step Verification | Velzon - Admin & Dashboard Template</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}">
+
+    <!-- Layout config Js -->
+    <script src="{% static 'assets/js/layout.js' %}"></script>
+    <!-- Bootstrap Css -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- Icons Css -->
+    <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- App Css-->
+    <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css" />
+    <!-- custom Css-->
+    <link href="{% static 'assets/css/custom.min.css' %}" rel="stylesheet" type="text/css" />
+
+    <style>
+        .digit-input {
+            width: 60px;
+            height: 70px;
+            font-size: 2rem;
+            text-align: center;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-page-wrapper pt-5">
+        <!-- auth page bg -->
+        <div class="auth-one-bg-position auth-one-bg" id="auth-particles">
+            <div class="bg-overlay"></div>
+            <div class="shape">
+                <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1440 120">
+                    <path d="M 0,36 C 144,53.6 432,123.2 720,124 C 1008,124.8 1296,56.8 1440,40L1440 140L0 140z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- auth page content -->
+        <div class="auth-page-content">
+            <div class="container">
+
+
+                <div class="row justify-content-center">
+                    <div class="col-md-8 col-lg-6 col-xl-5">
+                        <div class="card mt-4 card-bg-fill">
+                            <div class="card-body p-4">
+                                <div class="mb-4 text-center">
+                                    <div class="avatar-lg mx-auto">
+                                        <div class="avatar-title bg-light text-primary display-5 rounded-circle">
+                                            <i class="ri-mail-line"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="p-2 mt-4">
+                                    <div class="text-muted text-center mb-4 mx-lg-3">
+                                        <h4>Verify Your Email</h4>
+                                        <p>Please enter the 4 digit code sent to {{ request.session.verification_email }}</p>
+                                    </div>
+
+                                    <form id="verifyEmailForm">
+                                        {% csrf_token %}
+                                        <div class="row">
+                                            <div class="d-flex justify-content-center mb-4">
+                                                <input type="text" class="form-control digit-input" id="digit1"
+                                                    name="dijit1" maxlength="1" required onkeyup="moveToNext(1, event)"
+                                                    autocomplete="off">
+                                                <input type="text" class="form-control digit-input" id="digit2"
+                                                    name="dijit2" maxlength="1" required onkeyup="moveToNext(2, event)"
+                                                    autocomplete="off">
+                                                <input type="text" class="form-control digit-input" id="digit3"
+                                                    name="dijit3" maxlength="1" required onkeyup="moveToNext(3, event)"
+                                                    autocomplete="off">
+                                                <input type="text" class="form-control digit-input" id="digit4"
+                                                    name="dijit4" maxlength="1" required onkeyup="moveToNext(4, event)"
+                                                    autocomplete="off">
+                                            </div>
+                                        </div>
+
+                                        <!-- Error Message -->
+                                        <div id="error-message" class="alert alert-danger d-none mb-3"></div>
+
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-success w-100"
+                                                id="verify-btn">Verify</button>
+                                        </div>
+                                    </form>
+                                    <div class="mt-4 text-center">
+                                        <p class="mt-3 mb-0">
+                                            Didn't get the code? <a href="#" id="resend-link">Resend</a>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- footer -->
+
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+    <script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
+    <script src="{% static 'assets/js/plugins.js' %}"></script>
+    <script src="{% static 'assets/libs/particles.js/particles.js' %}"></script>
+    <script src="{% static 'assets/js/pages/particles.app.js' %}"></script>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // Move to next input field or previous on backspace
+        function moveToNext(current, event) {
+            const inputs = document.querySelectorAll('.digit-input');
+
+            if (event.key === 'Backspace') {
+                if (current > 1) {
+                    inputs[current - 2].focus();
+                }
+                return;
+            }
+
+            if (event.key >= '0' && event.key <= '9') {
+                if (current < inputs.length) {
+                    inputs[current].focus();
+                }
+            }
+        }
+
+        // Auto-focus first input on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('digit1').focus();
+        });
+
+        $(document).ready(function () {
+            // Handle form submission
+            $('#verifyEmailForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Hide any previous error
+                $('#error-message').addClass('d-none');
+
+                // Show loading state
+                const verifyBtn = $('#verify-btn');
+                verifyBtn.prop('disabled', true).html(
+                    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...'
+                );
+
+                // Submit via AJAX
+                $.ajax({
+                    type: 'POST',
+                    url: "{% url 'emailverification' %}",
+                    data: $(this).serialize(),
+                    success: function (response) {
+                        if (response.success) {
+                            // Show success message and redirect
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message || 'Email verified successfully!',
+                                showConfirmButton: false,
+                                timer: 1500
+                            }).then((result) => {
+                                window.location.href = response.redirect_url || '/accounts/';
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message,
+                            });
+                            verifyBtn.prop('disabled', false).html('Verify Email');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        // Show error message
+                        $('#error-message').text('An error occurred. Please try again.').removeClass('d-none');
+                        verifyBtn.prop('disabled', false).html('Verify Email');
+                    }
+                });
+            });
+            // Handle resend code
+            $('#resend-link').on('click', function (e) {
+                e.preventDefault();
+
+                Swal.fire({
+                    title: 'Resend Code?',
+                    text: 'Send a new verification code to your email?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, resend it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Sending...',
+                            text: 'Please wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        // Request new code
+                        $.post('{% url "resend_verification" %}', {
+                            csrfmiddlewaretoken: '{{ csrf_token }}'
+                        }, function (response) {
+                            Swal.close();
+
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Code Sent!',
+                                    text: 'A new verification code has been sent to your email.'
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: response.message || 'Failed to resend verification code.'
+                                });
+                            }
+                        }).fail(function () {
+                            Swal.close();
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Failed to resend verification code. Please try again.'
+                            });
+                        });
+                    }
+                });
+            });
+
+        });
+    </script>
+
+</body>
+
+</html>
