@@ -27,7 +27,6 @@ from django.utils.timezone import now
 from core.models import *
 from django.core.files.base import ContentFile
 from core.validators import validate_multiple_images
-from core.preprocessing import preprocess_image
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
@@ -403,81 +402,131 @@ def get_session_user(request):
 
 
 
-
+from core.validators import *
+from core.preprocessing import *
 
 # Upload Receipts and Stickers Views
 @csrf_exempt
 def upload_receipts(request):
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method."}, status=400)
+        return JsonResponse({"error": "Invalid method"}, status=405)
 
-    user, err_response = get_session_user(request)
-    if err_response:
-        return err_response
+    user, err = get_session_user(request)
+    if err: return err
 
     files = request.FILES.getlist("files")
     if not files:
-        return JsonResponse({"success": False, "error": "No files provided."}, status=400)
+        return JsonResponse({"success": False, "message": "No files selected"})
 
-    # --- VALIDATE FILES ---
-    try:
-        validate_multiple_images(files)
-    except Exception as e:
-        return JsonResponse({"success": False, "errors": e.messages}, status=400)
-
-    saved_ids = []
-    for file in files:
-        processed_file = preprocess_image(file)  # Returns BytesIO or file-like object
-        r = receipts(
-            user=user,
-            original_filename=file.name,
-            file_size=file.size,
-            year=now().year,
-            month=now().month
-        )
-        r.image_path.save(file.name, ContentFile(processed_file.read()), save=True)
-        saved_ids.append(r.id)
-
-    return JsonResponse({
+    # Step 1: Validate and filter by quality
+    valid_files, rejected_files = validate_multiple_images(files)
+    
+    if not valid_files:
+        return JsonResponse({
+            "success": False,
+            "message": "All files rejected due to poor quality",
+            "rejected": [{"file": r['file'], "reason": r['errors'][0]} for r in rejected_files]
+        })
+    
+    # If some files were rejected, inform user
+    response_data = {
         "success": True,
-        "message": "Receipts uploaded & processed successfully.",
-        "ids": saved_ids
-    })
+        "count": len(valid_files),
+        "accepted": len(valid_files),
+        "rejected": len(rejected_files)
+    }
+    
+    if rejected_files:
+        response_data["rejection_details"] = [
+            {"file": r['file'], "reason": r['errors'][0]} 
+            for r in rejected_files[:5]  # Limit to 5 for response size
+        ]
 
+    # Step 2: Process valid files
+    saved_ids = []
+    for file in valid_files:
+        try:
+            processed_file = preprocess_image_pro(file) 
+            
+            receipt = receipts(
+                user=user,
+                original_filename=file.name,
+                file_size=file.size,
+                year=now().year,
+                month=now().month,
+                status='processing'
+            )
+            receipt.image_path.save(file.name, processed_file, save=True)
+            saved_ids.append(receipt.id)
+        except Exception as e:
+            print(f"Error processing {file.name}: {e}")
+            continue
+
+    if saved_ids:
+        receipts.objects.filter(id__in=saved_ids).update(status='processed')
+    
+    response = JsonResponse(response_data)
+    return response
 
 @csrf_exempt
 def upload_stickers(request):
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method."}, status=400)
+        return JsonResponse({"error": "Invalid method"}, status=405)
 
-    user, err_response = get_session_user(request)
-    if err_response:
-        return err_response
+    user, err = get_session_user(request)
+    if err: 
+        return err
 
     files = request.FILES.getlist("files")
     if not files:
-        return JsonResponse({"success": False, "error": "No files provided."}, status=400)
+        return JsonResponse({"success": False, "message": "No files selected"})
 
-    try:
-        validate_multiple_images(files)
-    except Exception as e:
-        return JsonResponse({"success": False, "errors": e.messages}, status=400)
-
-    saved_ids = []
+    # Step 1: Validate each individually
+    valid_files = []
+    errors = []
     for file in files:
-        processed_file = preprocess_image(file)
-        s = stickers(
-            user=user,
-            original_filename=file.name,
-            file_size=file.size,
-            year=now().year,
-            month=now().month
-        )
-        s.image_path.save(file.name, ContentFile(processed_file.read()), save=True)
-        saved_ids.append(s.id)
+        try:
+            validate_image_file(file)  # Clarity check included
+            valid_files.append(file)
+        except ValidationError as e:
+            errors.extend(e.messages)
 
-    return JsonResponse({
+    if not valid_files:
+        return JsonResponse({
+            "success": False,
+            "message": "All files failed validation",
+            "errors": errors
+        })
+
+    # Step 2: Instant Feedback
+    response = JsonResponse({
         "success": True,
-        "message": "Stickers uploaded & processed successfully.",
-        "ids": saved_ids
+        "count": len(valid_files),
+        "message": f"{len(valid_files)} files uploaded successfully",
+        "errors": errors if errors else None
     })
+
+    # Step 3: Process valid only
+    saved_ids = []
+    for file in valid_files:
+        try:
+            processed_file = preprocess_image_pro(file) 
+
+            sticker = stickers(
+                user=user,
+                original_filename=file.name,
+                file_size=file.size,
+                year=now().year,
+                month=now().month,
+                status='processing'
+            )
+            sticker.image_path.save(file.name, processed_file, save=True)
+            saved_ids.append(sticker.id)
+        except Exception as e:
+            print(f"Error processing sticker {file.name}: {e}")
+            continue
+
+    if saved_ids:
+        stickers.objects.filter(id__in=saved_ids).update(status='processed')
+
+    return response

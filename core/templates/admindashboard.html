@@ -50,7 +50,8 @@
                             </div>
                         </form>
 
-                        <input type="file" id="receiptFileInput" multiple accept="image/*,.pdf" style="display: none;">
+                        <!-- Receipt -->
+                        <input type="file" id="receiptFileInput" multiple accept=".jpg,.jpeg,.png" style="display: none;">
 
                         <!-- File Preview List -->
                         <div id="receiptFilePreview" class="mt-3 text-start border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto; display: none;">
@@ -92,7 +93,7 @@
                             </div>
                         </form>
 
-                        <input type="file" id="stickerFileInput" multiple accept="image/*" style="display: none;">
+                        <input type="file" id="stickerFileInput" multiple accept=".jpg,.jpeg,.png" style="display: none;">
 
                         <!-- File Preview List -->
                         <div id="stickerFilePreview" class="mt-3 text-start border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto; display: none;">
@@ -306,24 +307,88 @@ document.addEventListener("DOMContentLoaded", function () {
     // --------------------------
     // 📌 Upload Function
     // --------------------------
-    function uploadFiles(inputId, url) {
+    // Ye function call hoga upload button click pe
+    function uploadWithFeedback(inputId, url, type) {
         const input = document.getElementById(inputId);
-        if (input.files.length === 0) return alert("No files selected!");
+        if (input.files.length === 0) {
+            Swal.fire("Oops!", "Please select at least one file", "warning");
+            return;
+        }
 
         const formData = new FormData();
-        Array.from(input.files).forEach(file => formData.append("files", file));
+        Array.from(input.files).forEach(f => formData.append("files", f));
         formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
 
-        fetch(url, { method: "POST", body: formData })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message || "Uploaded!");
+        Swal.fire({
+            title: 'Validating Image Quality...',
+            html: 'Checking for blur, brightness, contrast, and readability<br><small>Poor quality images will be rejected</small>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
 
+        fetch(url, {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                let html = `<strong>${data.accepted} ${type} accepted</strong>`;
+                
+                if (data.rejected > 0) {
+                    html += `<br><span class="text-warning">${data.rejected} files rejected due to poor quality</span>`;
+                    
+                    if (data.rejection_details) {
+                        html += `<br><small class="text-muted mt-2">Rejected files: `;
+                        data.rejection_details.forEach(d => {
+                            html += `<br>• ${d.file}: ${d.reason}`;
+                        });
+                        html += `</small>`;
+                    }
+                }
+                
+                Swal.fire({
+                    icon: data.rejected > 0 ? 'warning' : 'success',
+                    title: data.rejected > 0 ? 'Partial Success' : 'Perfect!',
+                    html: html,
+                    timer: 5000
+                });
+                
                 input.value = "";
                 displayFiles([], inputId.replace("Input", "List"), inputId.replace("Input", "Preview"));
-            })
-            .catch(err => alert("Error: " + err));
+            } else {
+                let errorMsg = data.errors ? data.errors.join("<br>") : data.message;
+                
+                // Special handling for quality rejection
+                if (data.rejected) {
+                    errorMsg = `<strong>All files rejected due to poor quality:</strong><br>`;
+                    data.rejected.forEach(r => {
+                        errorMsg += `<br>• ${r.file}: ${r.reason}`;
+                    });
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Upload Failed',
+                    html: errorMsg
+                });
+            }
+        })
+        .catch(err => {
+            Swal.fire("Error", "Something went wrong!", "error");
+        });
     }
+
+    // Ab buttons pe lagao
+    document.getElementById("receiptUploadBtn").onclick = () => {
+        uploadWithFeedback("receiptFileInput", "/receipts/", "receipts");
+    };
+
+    document.getElementById("stickerUploadBtn").onclick = () => {
+        uploadWithFeedback("stickerFileInput", "/stickers/", "stickers");
+    };
 
     // --------------------------
     // Receipt Section
