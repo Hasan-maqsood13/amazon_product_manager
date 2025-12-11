@@ -111,6 +111,7 @@ class sticker_data(models.Model):
         related_name='stickers_data'
     )
     image_path = models.CharField(max_length=500)
+    barcode = models.CharField(max_length=100, blank=True, null=True)
     original_filename = models.CharField(max_length=255)
     file_size = models.IntegerField()
     upload_date = models.DateTimeField(default=timezone.now)

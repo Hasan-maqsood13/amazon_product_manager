@@ -380,6 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
             Swal.fire("Error", "Something went wrong!", "error");
         });
     }
+    
 
     // Ab buttons pe lagao
     document.getElementById("receiptUploadBtn").onclick = () => {
@@ -426,6 +427,79 @@ document.addEventListener("DOMContentLoaded", function () {
         handleFiles(e.dataTransfer.files, "stickerFileInput", "stickerFileList", "stickerFilePreview");
     });
 });
+</script>
+<script>
+// --------------------------
+// ⭐ NEW BARCODE SCANNING UPLOAD LOGIC (Add Only — Do NOT Remove Anything)
+// --------------------------
+
+document.getElementById("stickerUploadBtn").onclick = () => {
+    const input = document.getElementById("stickerFileInput");
+
+    if (input.files.length === 0) {
+        Swal.fire("Oops!", "Please select at least one file", "warning");
+        return;
+    }
+
+    const formData = new FormData();
+    Array.from(input.files).forEach(f => formData.append("files", f));
+    formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+    Swal.fire({
+        title: 'Scanning Barcodes...',
+        html: 'Processing your sticker images<br>Please wait, this may take a few seconds',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    fetch("/stickers/", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.success) {
+            let html = `${data.success_count} barcode(s) detected successfully!`;
+
+            if (data.failed_count > 0) {
+                html += `<br>${data.failed_count} failed`;
+            }
+
+            if (data.results && data.results.length > 0) {
+                html += "<hr><div style='text-align:left'>";
+                
+                data.results.forEach(r => {
+                    if (r.status === "success") {
+                        html += `<div><b>${r.file}</b> → ${r.barcode}</div>`;
+                    } else {
+                        html += `<div><b>${r.file}</b> → Failed ( ${r.reason} )</div>`;
+                    }
+                });
+
+                html += "</div>";
+            }
+
+            Swal.fire({
+                icon: data.failed_count === 0 ? 'success' : 'warning',
+                title: data.failed_count === 0 ? 'All Done!' : 'Partially Completed',
+                html: html,
+                timer: data.results.length > 5 ? null : 8000,
+                allowOutsideClick: true
+            });
+
+            // Clear files
+            input.value = "";
+            displayFiles([], "stickerFileList", "stickerFilePreview");
+
+        } else {
+            Swal.fire("Error", data.message || "Upload failed", "error");
+        }
+    })
+    .catch(err => {
+        Swal.fire("Error", "Something went wrong!", "error");
+    });
+};
 </script>
 
 {% endblock %}

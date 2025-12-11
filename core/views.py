@@ -39,6 +39,9 @@ from django.utils.timezone import now
 from .models import *
 from core.validators import *
 from core.preprocessing import *
+from pyzbar.pyzbar import decode
+from core.process_stickers import *
+from core.validators import *
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
@@ -476,61 +479,75 @@ def upload_receipts(request):
 
     return JsonResponse(response_data)
 
+from core.barcode import process_sticker
+
 @csrf_exempt
 def upload_stickers(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid method"}, status=405)
+
     user, err = get_session_user(request)
     if err:
         return err
+
     files = request.FILES.getlist("files")
     if not files:
         return JsonResponse({"success": False, "message": "No files selected"})
-    # Step 1: Validate each individually
-    valid_files = []
-    errors = []
-    for file in files:
-        try:
-            validate_image_file(file) # Clarity check included
-            valid_files.append(file)
-        except ValidationError as e:
-            errors.extend(e.messages)
-    if not valid_files:
-        return JsonResponse({
-            "success": False,
-            "message": "All files failed validation",
-            "errors": errors
-        })
-    # Step 2: Instant Feedback
-    response = JsonResponse({
+
+    # Simple extension validation
+    valid_files, rejected_files = validate_multiple_stickers(files)
+
+    response_data = {
         "success": True,
-        "count": len(valid_files),
-        "message": f"{len(valid_files)} files uploaded successfully",
-        "errors": errors if errors else None
-    })
-    # Step 3: Process valid only
-    saved_ids = []
+        "accepted": len(valid_files),
+        "rejected": len(rejected_files),
+        "results": [],  # ← Ye naya hai
+        "failed_count": 0,
+        "success_count": 0
+    }
+
+    if rejected_files:
+        response_data["rejection_details"] = [
+            {"file": r['file'], "reason": r['errors'][0]} for r in rejected_files
+        ]
+
+    # Save + Process each file
     for file in valid_files:
         try:
-            processed_file = preprocess_image_pro(file)
             sticker = stickers(
                 user=user,
                 original_filename=file.name,
                 file_size=file.size,
-                year=now().year,
-                month=now().month,
-                status='processing'
+                year=timezone.now().year,
+                month=timezone.now().month,
+                status='pending'
             )
-            sticker.image_path.save(file.name, processed_file, save=True)
-            saved_ids.append(sticker.id)
+            sticker.image_path.save(file.name, file, save=True)
+
+            # Process immediately
+            result = process_sticker(sticker.id)
+
+            if result["status"] == "success":
+                response_data["success_count"] += 1
+                response_data["results"].append({
+                    "file": result["file"],
+                    "barcode": result["barcode"],
+                    "status": "success"
+                })
+            else:
+                response_data["failed_count"] += 1
+                response_data["results"].append({
+                    "file": result["file"],
+                    "status": "failed",
+                    "reason": result.get("reason", "Barcode not detected")
+                })
+
         except Exception as e:
-            print(f"Error processing sticker {file.name}: {e}")
-            continue
-    if saved_ids:
-        stickers.objects.filter(id__in=saved_ids).update(status='processed')
-    return response
+            response_data["failed_count"] += 1
+            response_data["results"].append({
+                "file": file.name,
+                "status": "failed",
+                "reason": "Processing error"
+            })
 
-
-
-
-
+    return JsonResponse(response_data)

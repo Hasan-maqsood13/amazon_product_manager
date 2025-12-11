@@ -1,69 +1,95 @@
-import pyzbar.pyzbar as pyzbar
+# core/barcode.py  (naya file bana do)
+from pyzbar.pyzbar import decode
 from PIL import Image
+import cv2
 import numpy as np
-from django.utils import timezone
-from Receipts.models import receipts # Agar Receipts app mein stickers model hai toh. Assuming Stickers.models is correct.
-from Stickers.models import stickers, sticker_data # Corrected import
-from decimal import Decimal
+from django.core.files.base import ContentFile
+from io import BytesIO
 
-def extract_barcode_data(image_path):
-    """Extract barcode data using pyzbar."""
-    img = Image.open(image_path)
-    # Convert to grayscale might help sometimes, but pyzbar works well with color too
-    # img = img.convert('L') 
-    img_np = np.array(img)
-    
-    barcodes = pyzbar.decode(img_np)
-    
-    extracted_codes = []
-    for barcode in barcodes:
-        code_data = barcode.data.decode("utf-8")
-        code_type = barcode.type
-        extracted_codes.append({
-            'data': code_data,
-            'type': code_type,
-            # We don't get confidence score easily with pyzbar, keeping it simple for now.
-        })
-    return extracted_codes
+def scan_barcode_robust(image_path):
+    """
+    Sabse powerful barcode scanner jo real-world FNSKU images pe kaam karta hai
+    """
+    try:
+        # Open with PIL
+        img = Image.open(image_path)
+        img = img.convert('RGB')
+
+        # Convert to numpy array
+        img_array = np.array(img)
+
+        # Method 1: Direct pyzbar
+        decoded = decode(img_array)
+        if decoded:
+            return decoded[0].data.decode('utf-8')
+
+        # Method 2: Grayscale + Thresholding
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        for thresh in [cv2.THRESH_BINARY, cv2.THRESH_BINARY + cv2.THRESH_OTSU]:
+            _, binary = cv2.threshold(gray, 0, 255, thresh)
+            decoded = decode(binary)
+            if decoded:
+                return decoded[0].data.decode('utf-8')
+
+        # Method 3: Invert (black barcode on white)
+        inverted = cv2.bitwise_not(gray)
+        decoded = decode(inverted)
+        if decoded:
+            return decoded[0].data.decode('utf-8')
+
+        # Method 4: Resize up (small images ke liye)
+        large = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        decoded = decode(large)
+        if decoded:
+            return decoded[0].data.decode('utf-8')
+
+        # Method 5: Denoise + Sharpen
+        denoised = cv2.fastNlMeansDenoising(gray)
+        kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(denoised, -1, kernel)
+        decoded = decode(sharpened)
+        if decoded:
+            return decoded[0].data.decode('utf-8')
+
+        return None
+
+    except Exception as e:
+        print(f"Barcode scan error: {e}")
+        return None
+
 
 def process_sticker(sticker_id):
-    """Process a single sticker: barcode scan + save data."""
+    from .models import stickers, sticker_data
+    import os
+
     try:
-        # Fetch the sticker object using the correct model from Stickers app
         sticker = stickers.objects.get(id=sticker_id)
-        sticker.status = 'processing'
-        sticker.save()
-
-        # Use the absolute path to the image file
-        image_full_path = sticker.image_path.path
-        extracted_codes = extract_barcode_data(image_full_path)
-
-        if not extracted_codes:
-            sticker.status = 'no_barcode_found'
-            sticker.save()
+        if sticker.status != 'pending':
             return
 
-        # Assuming one main code per sticker for this task
-        first_code = extracted_codes[0]['data'] 
+        barcode = scan_barcode_robust(sticker.image_path.path)
 
-        # Save to sticker_data table
-        sticker_data.objects.create(
-            sticker=sticker,
-            extracted_sku=first_code,
-            cleaned_sku=first_code, # Simple cleaning for now
-            matching_status='pending',
-            created_at=timezone.now(),
-            processed_at=timezone.now()
-        )
-
-        sticker.status = 'done'
-        sticker.save()
-
-    except stickers.DoesNotExist:
-        print(f"Sticker with ID {sticker_id} not found.")
-    except Exception as e:
-        if 'sticker' in locals():
+        if barcode and len(barcode.strip()) > 3:
+            # Save to sticker_data
+            sticker_data.objects.create(
+                user=sticker.user,
+                image_path=sticker.image_path.name,
+                original_filename=sticker.original_filename,
+                file_size=sticker.file_size,
+                barcode=barcode.strip(),
+                status='processed',
+                year=sticker.year,
+                month=sticker.month,
+            )
+            sticker.status = 'processed'
+            sticker.save()
+            return {"file": sticker.original_filename, "barcode": barcode, "status": "success"}
+        else:
             sticker.status = 'failed'
             sticker.save()
+            return {"file": sticker.original_filename, "status": "failed", "reason": "No barcode found"}
+
+    except Exception as e:
         print(f"Error processing sticker {sticker_id}: {e}")
-        raise e
+        stickers.objects.filter(id=sticker_id).update(status='failed')
+        return {"file": "Unknown", "status": "failed", "reason": str(e)}

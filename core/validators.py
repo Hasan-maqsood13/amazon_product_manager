@@ -198,3 +198,28 @@ def validate_multiple_images(files):
             })
     
     return valid_files, rejected_files
+
+
+
+def validate_sticker_image(file):
+    errors = []
+    ext = file.name.split('.')[-1].lower()
+    if ext not in {'jpg', 'jpeg', 'png'}:
+        errors.append(f"{file.name}: Only JPG, JPEG, or PNG allowed.")
+    
+    if errors:
+        raise ValidationError(errors)
+
+def validate_multiple_stickers(files):
+    valid_files = []
+    rejected_files = []
+    for file in files:
+        try:
+            validate_sticker_image(file)
+            valid_files.append(file)
+        except ValidationError as e:
+            rejected_files.append({
+                'file': file.name,
+                'errors': e.messages
+            })
+    return valid_files, rejected_files
