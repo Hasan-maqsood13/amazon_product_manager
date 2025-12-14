@@ -22,4 +22,7 @@ urlpatterns = [
     # upload Receipts and Stickers imgs
     path('receipts/', views.upload_receipts, name='upload_receipts'),
     path('stickers/', views.upload_stickers, name='upload_stickers'),
+
+    # Showing all receipts and stickers view paths
+    path('allreceipts/', views.all_receipts, name='all_receipts'),
 ]

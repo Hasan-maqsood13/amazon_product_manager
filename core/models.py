@@ -52,10 +52,9 @@ class receipts(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     created_at = models.DateTimeField(default=timezone.now)
-    raw_ocr_text = models.TextField(blank=True, null=True)  # Added for full raw OCR text
+    raw_ocr_text = models.TextField(blank=True, null=True) # Added for full raw OCR text
     def __str__(self):
-        return f"Receipt #{self.id} - {self.original_filename}"
-
+        return f"Receipt #{self.id} - {self.original_filename} - {self.status}"
 
 class receipt_items(models.Model):
     id = models.AutoField(primary_key=True)
@@ -73,17 +72,10 @@ class receipt_items(models.Model):
     raw_text = models.TextField(null=True, blank=True)
     confidence_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=50, default='processed') # New field added for flagging
     def __str__(self):
-        return f"Item #{self.line_number} - {self.product_name or 'Unknown'} - SKU => {self.sku or ''} - Receipt #{self.receipt or ''}"
-    
-
-
-
-
-
-
-
-
+        return f"Item #{self.line_number} - {self.product_name or 'Unknown'} - SKU => {self.sku or ''} - Receipt #{self.receipt or ''} - -- - Status: {self.status}"
+  
 # Stickers models
 class stickers(models.Model):
     id = models.AutoField(primary_key=True)
@@ -102,7 +94,8 @@ class stickers(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     def __str__(self):
         return f"Sticker #{self.id} - {self.original_filename}"
-
+   
+   
 class sticker_data(models.Model):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
@@ -119,5 +112,32 @@ class sticker_data(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     created_at = models.DateTimeField(default=timezone.now)
+    MATCHING_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('done', 'Done'),
+        ('unmatched', 'Unmatched'),
+    )
+    matching_status = models.CharField(
+        max_length=20,
+        choices=MATCHING_STATUS_CHOICES,
+        default='pending'
+    )
     def __str__(self):
         return f"StickerData #{self.id} - {self.original_filename}"
+
+class match_history(models.Model):
+    id = models.AutoField(primary_key=True)
+    sticker_data = models.ForeignKey(
+        sticker_data,
+        on_delete=models.CASCADE,
+        related_name='matches'
+    )
+    receipt_item = models.ForeignKey(
+        receipt_items,
+        on_delete=models.CASCADE,
+        related_name='matches'
+    )
+    matched_at = models.DateTimeField(default=timezone.now)
+    SKU = models.CharField(max_length=100)
+    def __str__(self):
+        return f"Match #{self.id} - StickerData #{self.sticker_data.id} to ReceiptItem #{self.receipt_item.id} - SKU: {self.SKU}"

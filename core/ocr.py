@@ -1,52 +1,97 @@
-import easyocr
-import pytesseract
+import os
 from PIL import Image
 import numpy as np
 from openai import OpenAI
 from decimal import Decimal
 from django.utils import timezone
 from .models import *
-import os
 from dotenv import load_dotenv
+import easyocr
+import pytesseract
 
 load_dotenv()
 
 # OpenAI Client
 client = OpenAI(api_key=os.getenv('api_key'))
 
-# EasyOCR Reader
-easy_reader = easyocr.Reader(['en'], gpu=False)  # gpu=True if available
+# EasyOCR Reader (backup ke liye)
+easy_reader = easyocr.Reader(['en'], gpu=False)
 
-def extract_text_with_ocr(image_path):
-    """Extract text using EasyOCR first, fallback to Tesseract for better accuracy on complex receipts."""
-    pil_image = Image.open(image_path).convert('RGB')
-    img_array = np.array(pil_image)
-    
-    # Try EasyOCR
-    easy_result = easy_reader.readtext(img_array, detail=1, paragraph=False)
-    easy_lines = [det[1] for det in easy_result]
-    easy_confidences = [det[2] for det in easy_result]
-    easy_raw_text = "\n".join(easy_lines)
-    easy_avg_conf = sum(easy_confidences) / len(easy_confidences) * 100 if easy_confidences else 0
-    
-    # If low confidence, try Tesseract as fallback
-    if easy_avg_conf < 70:  # Threshold for fallback
-        tess_config = r'--oem 3 --psm 6'  # PSM 6 for block of text
-        tess_raw_text = pytesseract.image_to_string(pil_image, config=tess_config)
-        tess_lines = tess_raw_text.split('\n')
-        # Simple confidence estimation for Tesseract (not native, approximate)
-        tess_avg_conf = 80 if len(tess_lines) > len(easy_lines) else easy_avg_conf  # Heuristic
+def extract_text_with_ocr(receipt_instance):
+    """
+    NEW FUNCTION: Google Vision API use karega images aur PDFs ke liye
+    Yeh function receipt object leta hai, sirf image path nahi
+    """
+    try:
+        file_path = receipt_instance.image_path.path
+        file_ext = os.path.splitext(file_path)[1].lower()
         
-        # Choose better one based on line count/content length
-        if len(tess_raw_text) > len(easy_raw_text):
-            return tess_raw_text, tess_avg_conf
+        # Debugging ke liye
+        print(f"Processing file: {file_path}, Type: {file_ext}")
+        
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+        
+        if file_ext == '.pdf':
+            # PDF file ke liye Google Vision use karein
+            print("Using Google Vision for PDF extraction...")
+            raw_text = extract_text_from_pdf(file_content)
+            avg_conf = 85.0  # PDF ke liye confidence score
+            
+        elif file_ext in ['.jpg', '.jpeg', '.png']:
+            # Image ke liye pehle Google Vision try karein
+            print("Using Google Vision for image extraction...")
+            try:
+                raw_text = extract_text_from_image(file_content)
+                avg_conf = 90.0
+                
+                # Agar Google Vision se text mila to wahi use karein
+                if raw_text and len(raw_text.strip()) > 50:
+                    print("Google Vision extraction successful")
+                    return raw_text, avg_conf
+                else:
+                    print("Google Vision returned little/no text, trying fallback...")
+                    # Fallback to old method
+                    raise Exception("Low text from Google Vision")
+                    
+            except Exception as e:
+                print(f"Google Vision failed: {e}, using fallback OCR...")
+                # Fallback: Purana EasyOCR/Tesseract method
+                pil_image = Image.open(file_path).convert('RGB')
+                img_array = np.array(pil_image)
+                
+                # Try EasyOCR
+                easy_result = easy_reader.readtext(img_array, detail=1, paragraph=False)
+                easy_lines = [det[1] for det in easy_result]
+                easy_confidences = [det[2] for det in easy_result]
+                easy_raw_text = "\n".join(easy_lines)
+                easy_avg_conf = sum(easy_confidences) / len(easy_confidences) * 100 if easy_confidences else 0
+                
+                # If low confidence, try Tesseract
+                if easy_avg_conf < 70:
+                    tess_config = r'--oem 3 --psm 6'
+                    tess_raw_text = pytesseract.image_to_string(pil_image, config=tess_config)
+                    if len(tess_raw_text) > len(easy_raw_text):
+                        raw_text = tess_raw_text
+                        avg_conf = 80
+                    else:
+                        raw_text = easy_raw_text
+                        avg_conf = easy_avg_conf
+                else:
+                    raw_text = easy_raw_text
+                    avg_conf = easy_avg_conf
         else:
-            return easy_raw_text, easy_avg_conf
-    else:
-        return easy_raw_text, easy_avg_conf
+            raise ValueError(f"Unsupported file format: {file_ext}")
+        
+        return raw_text, avg_conf
+        
+    except Exception as e:
+        print(f"Error in extract_text_with_ocr: {e}")
+        # Agar kuch bhi fail ho jaye to empty text return karein
+        return "", 0.0
 
 def parse_with_ai(raw_text):
-    """Improved AI parsing: Strict item extraction, handle duplicates, different formats."""
+    """AI parsing function - Yeh bilkul waisi hi rahegi"""
     prompt = f"""
 You are an advanced, error-tolerant receipt-analysis AI trained to extract every purchased item with maximum accuracy from imperfect OCR text.
 
@@ -90,7 +135,7 @@ Your extraction must:
    - coupons unless they explicitly reference a specific purchased item
 
 2. **Item Name Reconstruction**
-   - Fix OCR mistakes ("M1LK" → "MILK", “C0KE” → “COKE”)  
+   - Fix OCR mistakes ("M1LK" → "MILK", "C0KE" → "COKE")  
    - Join broken names split across lines  
    - Remove extra symbols, timestamps, clerk IDs  
    - Preserve clarity without inventing words
@@ -108,7 +153,7 @@ Your extraction must:
 
 4. **Quantity Extraction Rules**
    Use these patterns (OCR is very messy):
-   - "QTY 2", "Qty2", "2 @", "x2", "2X", "2 EA", "*2", "2pk", “2-pack”
+   - "QTY 2", "Qty2", "2 @", "x2", "2X", "2 EA", "*2", "2pk", "2-pack"
    - If nothing found, default to 1.
 
 5. **SKU/UPC/CODE Extraction Rules**  
@@ -117,7 +162,7 @@ Your extraction must:
    - alphanumeric product codes  
    - codes BEFORE or AFTER item name  
    - codes in parentheses or at end of line  
-   - barcodes split across lines (e.g., “1234” + “567890”) → merge if clearly adjacent
+   - barcodes split across lines (e.g., "1234" + "567890") → merge if clearly adjacent
 
    After extracting codes:
    → Re-scan the ENTIRE raw text again to ensure no code was missed.
@@ -152,80 +197,133 @@ ONLY item blocks exactly in the above format.
 Begin extraction now.
 ====================================================
 """
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,  # Lower for consistency
-        max_tokens=2000  # Increase for long receipts
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=2000
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI API error: {e}")
+        return ""
 
 def process_receipt(receipt_id):
-    """Process receipt: OCR + AI + save, with better error handling."""
+    """Process receipt with new OCR system"""
     receipt = receipts.objects.get(id=receipt_id)
     receipt.status = 'processing'
     receipt.save()
-    
+   
     try:
-        raw_text, avg_conf = extract_text_with_ocr(receipt.image_path.path)
+        # YAHAN IMPORTANT CHANGE HAI:
+        # Pehle: raw_text, avg_conf = extract_text_with_ocr(receipt.image_path.path)
+        # Ab:    raw_text, avg_conf = extract_text_with_ocr(receipt)
+        raw_text, avg_conf = extract_text_with_ocr(receipt)
+        
         receipt.raw_ocr_text = raw_text
         receipt.save()
+       
+        # Agar text nahi mila to fail karein
+        if not raw_text or len(raw_text.strip()) < 10:
+            receipt.status = 'failed'
+            receipt.raw_ocr_text = "ERROR: No text extracted from file"
+            receipt.save()
+            return
         
         parsed = parse_with_ai(raw_text)
-        lines = [line.strip() for line in parsed.split('\n') if line.strip()]
         
-        seen_skus = set()  # To avoid duplicates
+        # Agar AI parsing fail ho jaye
+        if not parsed:
+            receipt.status = 'failed'
+            receipt.raw_ocr_text += "\nERROR: AI parsing failed"
+            receipt.save()
+            return
+        
+        lines = [line.strip() for line in parsed.split('\n') if line.strip()]
+       
+        seen_skus = set()
         i = 0
         line_num = 1
+        items_created = 0
+        
         while i < len(lines):
             if lines[i].startswith('- Item Name:'):
                 name = lines[i].replace('- Item Name:', '').strip()
-                
+               
                 qty_line = lines[i+1] if i+1 < len(lines) and lines[i+1].startswith('Quantity:') else 'Quantity: 1'
                 qty_str = qty_line.replace('Quantity:', '').strip()
-                
+               
                 unit_line = lines[i+2] if i+2 < len(lines) and lines[i+2].startswith('Unit Price:') else 'Unit Price: Not found'
                 unit_str = unit_line.replace('Unit Price:', '').replace('$', '').strip()
-                
+               
                 total_line = lines[i+3] if i+3 < len(lines) and lines[i+3].startswith('Total Price:') else 'Total Price: Not found'
                 total_str = total_line.replace('Total Price:', '').replace('$', '').strip()
-                
+               
                 code_line = lines[i+4] if i+4 < len(lines) and lines[i+4].startswith('Code:') else 'Code: Not found'
                 code = code_line.replace('Code:', '').strip()
-                
+               
                 # Duplicate check
                 if code != 'Not found' and code in seen_skus:
-                    code = 'Duplicate - ' + code  # Or handle as needed
-                
+                    code = 'Duplicate - ' + code
+               
                 seen_skus.add(code)
-                
+               
+                # Convert values
                 qty_val = Decimal(qty_str) if qty_str.replace('.', '', 1).isdigit() else None
                 unit_val = Decimal(unit_str) if unit_str != 'Not found' and unit_str.replace('.', '', 1).isdigit() else None
                 total_val = Decimal(total_str) if total_str != 'Not found' and total_str.replace('.', '', 1).isdigit() else None
-                
+               
+                # Create item
                 item = receipt_items(
                     receipt=receipt,
                     line_number=line_num,
-                    product_name=name,
+                    product_name=name if name else 'Unknown',
                     sku=code if code != 'Not found' else None,
                     quantity=qty_val,
                     unit_price=unit_val,
                     total_price=total_val,
-                    raw_text='\n'.join(lines[i:i+5]),  # Save item-specific raw
+                    raw_text='\n'.join(lines[i:i+5]),
                     confidence_score=Decimal(avg_conf),
                     created_at=timezone.now()
                 )
                 item.save()
+                
+                # Status set karein
+                missing = False
+                if not item.product_name or item.product_name.strip() == '' or item.product_name == 'Unknown':
+                    missing = True
+                if not item.sku or item.sku.strip() == '':
+                    missing = True
+                if item.quantity is None:
+                    missing = True
+                if item.unit_price is None:
+                    missing = True
+                if item.total_price is None:
+                    missing = True
+                
+                item.status = 'flagged for review' if missing else 'done'
+                item.save()
+                
                 line_num += 1
-                i += 5  # Skip to next item block
+                items_created += 1
+                i += 5
             else:
-                i += 1  # Skip invalid lines
+                i += 1
         
-        receipt.status = 'done'
+        # Agar koi item create hua hai to status 'done' karein
+        if items_created > 0:
+            receipt.status = 'done'
+        else:
+            receipt.status = 'failed'
+            receipt.raw_ocr_text += "\nERROR: No items extracted"
+        
         receipt.save()
-    
+        print(f"Receipt {receipt_id} processed: {items_created} items created")
+   
     except Exception as e:
+        print(f"Error processing receipt {receipt_id}: {e}")
         receipt.status = 'failed'
-        receipt.raw_ocr_text += f'\nError: {str(e)}'  # Log error
+        receipt.raw_ocr_text += f'\nError: {str(e)}'
         receipt.save()
         raise e

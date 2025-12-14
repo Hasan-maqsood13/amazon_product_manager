@@ -37,6 +37,84 @@
                         <span data-key="t-widgets">Dashboard</span>
                     </a>
                 </li>
+
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#receipts" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarApps">
+                        <i class="ri-apps-2-line"></i>
+                        <span data-key="t-apps">Receipts</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="receipts">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'all_receipts' %}" class="nav-link" data-key="t-chat">
+                                    All Receipts
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#stickers" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarApps">
+                        <i class="ri-apps-2-line"></i>
+                        <span data-key="t-apps">Stickers</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="stickers">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'dashboard' %}" class="nav-link" data-key="t-chat">
+                                    All Stickers
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#matching" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarApps">
+                        <i class="ri-apps-2-line"></i>
+                        <span data-key="t-apps">Matched Items</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="matching">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'dashboard' %}" class="nav-link" data-key="t-chat">
+                                    Matched Items
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'dashboard' %}" class="nav-link" data-key="t-chat">
+                                    Unmatched Items
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#asin" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarApps">
+                        <i class="ri-apps-2-line"></i>
+                        <span data-key="t-apps">ASIN's CSV</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="asin">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'dashboard' %}" class="nav-link" data-key="t-chat">
+                                    Upload CSV form here
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'dashboard' %}" class="nav-link" data-key="t-chat">
+                                   See all CSV's here
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
                 
 
                 

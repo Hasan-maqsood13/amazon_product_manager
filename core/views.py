@@ -40,8 +40,8 @@ from .models import *
 from core.validators import *
 from core.preprocessing import *
 from pyzbar.pyzbar import decode
-from core.process_stickers import *
 from core.validators import *
+from .matching import perform_matching
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
@@ -369,7 +369,6 @@ def logout(request):
 
 
 
-
 # Dashboard Views
 def admindashboard(request):
     user_id = request.session.get('user_id')
@@ -379,7 +378,6 @@ def admindashboard(request):
     if not user.is_verified or not user.is_active or user.role != "admin":
         return HttpResponseForbidden("Access Denied")
     return render(request, 'admindashboard.html')
-
 
 def dashboard_dd(request):
     user_id = request.session.get('user_id')
@@ -394,9 +392,6 @@ def dashboard_dd(request):
     
     return HttpResponse("Welcome to the User Dashboard")
 
-
-
-
 def get_session_user(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -406,16 +401,33 @@ def get_session_user(request):
         return user, None
     except User.DoesNotExist:
         return None, JsonResponse({"success": False, "error": "User not found."}, status=404)
-    
-
-
-
-
-
 
 from core.validators import *
 from core.preprocessing import *
 from core.ocr import process_receipt
+from django.utils import timezone
+from .models import sticker_data, receipt_items, match_history  # Add these imports
+
+# New function for matching
+def perform_matching(user):
+    pending_stickers = sticker_data.objects.filter(user=user, matching_status='pending', status='processed')
+    for sticker in pending_stickers:
+        if not sticker.barcode:
+            continue  # Skip if no barcode
+        matching_items = receipt_items.objects.filter(receipt__user=user, sku=sticker.barcode, status='done')
+        for item in matching_items:
+            matched_count = match_history.objects.filter(receipt_item=item).count()
+            quantity = int(item.quantity) if item.quantity else 0
+            if matched_count < quantity:
+                match_history.objects.create(
+                    sticker_data=sticker,
+                    receipt_item=item,
+                    SKU=sticker.barcode,
+                    matched_at=timezone.now()
+                )
+                sticker.matching_status = 'matched'
+                sticker.save()
+                break  # Move to next sticker after matching
 
 # Upload Receipts and Stickers Views
 @csrf_exempt
@@ -429,39 +441,35 @@ def upload_receipts(request):
         return JsonResponse({"success": False, "message": "No files selected"})
     # Step 1: Validate and filter by quality
     valid_files, rejected_files = validate_multiple_images(files)
-   
-    if not valid_files:
-        return JsonResponse({
-            "success": False,
-            "message": "All files rejected due to poor quality",
-            "rejected": [{"file": r['file'], "reason": r['errors'][0]} for r in rejected_files]
-        })
-   
-    # If some files were rejected, inform user
+  
+    # Always include lists in response
     response_data = {
-        "success": True,
+        "accepted_files": [f.name for f in valid_files],
+        "rejected_files": [{"file": r['file'], "reason": r['errors'][0]} for r in rejected_files],
         "accepted": len(valid_files),
         "rejected": len(rejected_files)
     }
-   
-    if rejected_files:
-        response_data["rejection_details"] = [
-            {"file": r['file'], "reason": r['errors'][0]}
-            for r in rejected_files[:5]  # Limit to 5 for response size
-        ]
+  
+    if not valid_files:
+        response_data["success"] = False
+        response_data["message"] = "All files rejected due to poor quality"
+        return JsonResponse(response_data)
+  
+    response_data["success"] = True
+  
     # Step 2: Process valid files
     saved_ids = []
     for file in valid_files:
         try:
             processed_file = preprocess_image_pro(file)
-           
+          
             receipt = receipts(
                 user=user,
                 original_filename=file.name,
                 file_size=file.size,
                 year=now().year,
                 month=now().month,
-                status='pending'  # Changed to 'pending'
+                status='pending' # Changed to 'pending'
             )
             receipt.image_path.save(file.name, processed_file, save=True)
             saved_ids.append(receipt.id)
@@ -472,11 +480,10 @@ def upload_receipts(request):
     for sid in saved_ids:
         try:
             process_receipt(sid)
-            response_data['message'] = 'Processing complete!'  # Optional
+            response_data['message'] = 'Processing complete!' # Optional
         except Exception as e:
             print(f"Error in OCR/AI for receipt {sid}: {e}")
             receipts.objects.filter(id=sid).update(status='failed')
-
     return JsonResponse(response_data)
 
 from core.barcode import process_sticker
@@ -485,18 +492,14 @@ from core.barcode import process_sticker
 def upload_stickers(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid method"}, status=405)
-
     user, err = get_session_user(request)
     if err:
         return err
-
     files = request.FILES.getlist("files")
     if not files:
         return JsonResponse({"success": False, "message": "No files selected"})
-
     # Simple extension validation
     valid_files, rejected_files = validate_multiple_stickers(files)
-
     response_data = {
         "success": True,
         "accepted": len(valid_files),
@@ -505,12 +508,10 @@ def upload_stickers(request):
         "failed_count": 0,
         "success_count": 0
     }
-
     if rejected_files:
         response_data["rejection_details"] = [
             {"file": r['file'], "reason": r['errors'][0]} for r in rejected_files
         ]
-
     # Save + Process each file
     for file in valid_files:
         try:
@@ -523,10 +524,8 @@ def upload_stickers(request):
                 status='pending'
             )
             sticker.image_path.save(file.name, file, save=True)
-
             # Process immediately
             result = process_sticker(sticker.id)
-
             if result["status"] == "success":
                 response_data["success_count"] += 1
                 response_data["results"].append({
@@ -541,7 +540,8 @@ def upload_stickers(request):
                     "status": "failed",
                     "reason": result.get("reason", "Barcode not detected")
                 })
-
+            # NEW: Immediately after processing/saving, trigger matching for all pending (including this one)
+            perform_matching(user)
         except Exception as e:
             response_data["failed_count"] += 1
             response_data["results"].append({
@@ -549,5 +549,9 @@ def upload_stickers(request):
                 "status": "failed",
                 "reason": "Processing error"
             })
-
     return JsonResponse(response_data)
+
+
+
+def all_receipts(request):
+    return render(request, 'all_receipts.html')

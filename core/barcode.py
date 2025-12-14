@@ -77,7 +77,8 @@ def process_sticker(sticker_id):
                 original_filename=sticker.original_filename,
                 file_size=sticker.file_size,
                 barcode=barcode.strip(),
-                status='processed',
+                status='processed',    
+                matching_status='pending',
                 year=sticker.year,
                 month=sticker.month,
             )
