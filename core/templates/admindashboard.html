@@ -1,12 +1,9 @@
 {% extends 'AB_base.html' %}
 {% load static %}
 {% block title %} Dashboard - Amazon Inventory Manager {% endblock %}
-
 {% block content %}
-
 <div class="page-content">
     <div class="container-fluid">
-
         <div class="row mb-5">
             <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
@@ -27,22 +24,17 @@
                 </div>
             </div>
         </div>
-
         <div class="row g-4">
-
             <div class="col-xl-6">
                 <div class="card card-animate border-0 shadow-lg h-100" style="transition: all 0.3s ease;">
-
                     <div class="card-header bg-primary text-white border-0 rounded-top-3 p-3">
                         <div class="d-flex align-items-center">
                             <i class="ri-file-list-3-line fs-24 me-2"></i>
                             <h4 class="mb-0 fw-bold text-white">Receipt & Invoice Upload</h4>
-                            <span class="badge bg-light text-primary ms-auto fs-12 py-1 px-2">JPG | PNG Only</span>
+                            <span class="badge bg-light text-primary ms-auto fs-12 py-1 px-2">JPG | PNG | PDF Only</span>
                         </div>
                     </div>
-
                     <div class="card-body text-center p-5">
-
                         <form action="#" class="dropzone" id="receiptDropzone" style="min-height: 250px;">
                             <div
                                 class="dz-message needsclick border-2 border-dashed rounded-3 p-5 mb-4 upload-zone-primary">
@@ -51,35 +43,29 @@
                                 <p class="text-muted mb-0 fs-15">or click to manually select files</p>
                             </div>
                         </form>
-
                         <!-- Receipt -->
                         <input type="file" id="receiptFileInput" multiple accept=".jpg,.jpeg,.png,.pdf" style="display: none;">
-
                         <!-- File Preview List -->
                         <div id="receiptFilePreview" class="mt-3 text-start border rounded p-3 bg-light"
                             style="max-height: 200px; overflow-y: auto; display: none;">
                             <h6 class="fw-bold text-dark mb-2">Selected Files:</h6>
                             <ul id="receiptFileList" class="list-unstyled mb-0"></ul>
                         </div>
-
                         <div class="d-grid mt-4">
                             <button type="button" class="btn btn-primary btn-hover rounded-pill btn-lg"
                                 id="receiptUploadBtn">
                                 <i class="ri-wallet-line align-bottom me-1"></i> Upload Purchase Receipts
                             </button>
                         </div>
-
                         <small class="d-block text-muted mt-3">
                             <i class="ri-lock-line me-1"></i> Securely upload up to 10MB per batch. Multiple files
-                            allowed.
+                            allowed. PDF for multi-page documents.
                         </small>
                     </div>
                 </div>
             </div>
-
             <div class="col-xl-6">
                 <div class="card card-animate border-0 shadow-lg h-100" style="transition: all 0.3s ease;">
-
                     <div class="card-header bg-success text-white border-0 rounded-top-3 p-3">
                         <div class="d-flex align-items-center">
                             <i class="ri-barcode-box-line fs-24 me-2"></i>
@@ -87,9 +73,7 @@
                             <span class="badge bg-light text-success ms-auto fs-12 py-1 px-2">JPG | PNG Only</span>
                         </div>
                     </div>
-
                     <div class="card-body text-center p-5">
-
                         <form action="#" class="dropzone" id="stickerDropzone" style="min-height: 250px;">
                             <div
                                 class="dz-message needsclick border-2 border-dashed rounded-3 p-5 mb-4 upload-zone-success">
@@ -98,24 +82,20 @@
                                 <p class="text-muted mb-0 fs-15">High-quality images for accurate barcode scanning</p>
                             </div>
                         </form>
-
                         <input type="file" id="stickerFileInput" multiple accept=".jpg,.jpeg,.png"
                             style="display: none;">
-
                         <!-- File Preview List -->
                         <div id="stickerFilePreview" class="mt-3 text-start border rounded p-3 bg-light"
                             style="max-height: 200px; overflow-y: auto; display: none;">
                             <h6 class="fw-bold text-dark mb-2">Selected Files:</h6>
                             <ul id="stickerFileList" class="list-unstyled mb-0"></ul>
                         </div>
-
                         <div class="d-grid mt-4">
                             <button type="button" class="btn btn-success btn-hover rounded-pill btn-lg"
                                 id="stickerUploadBtn">
                                 <i class="ri-sticky-note-line align-bottom me-1"></i> Upload Stickers
                             </button>
                         </div>
-
                         <small class="d-block text-muted mt-3">
                             <i class="ri-image-line me-1"></i> For faster & more accurate results, use clear,
                             non-blurry, de-noised, close-up photos. It will still work without, but quality helps!
@@ -123,18 +103,14 @@
                     </div>
                 </div>
             </div>
-
         </div>
-
         <div class="row mt-5">
             <div class="col-12">
                 <div class="card border-0 shadow-lg overflow-hidden rounded-4 text-white position-relative" style="background: linear-gradient(120deg, #012c5b 0%, #1e317a 20%, #51ce6e 100%);
                           min-height: 120px;
                           backdrop-filter: blur(10px);">
-
                     <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10"
                         style="background: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
-
                     <div class="card-body p-4 position-relative z-index-2">
                         <div class="d-flex align-items-center justify-content-between">
                             <div class="flex-grow-1 pe-3">
@@ -147,17 +123,13 @@
                                     you when your inventory matching is complete and ready for review.
                                 </p>
                             </div>
-
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-
     </div>
 </div>
-
 <div class="modal fade" id="guidelinesModal" tabindex="-1" aria-labelledby="guidelinesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -192,14 +164,12 @@
         </div>
     </div>
 </div>
-
 <style>
     /* Custom Shadow/Hover Effect */
     .card-animate:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
     }
-
     /* Custom Dropzone Styling */
     .dropzone {
         border: none !important;
@@ -207,7 +177,6 @@
         padding: 0 !important;
         background: transparent !important;
     }
-
     .upload-zone-primary {
         border: 2px dashed #4b9eff !important;
         /* Primary color dashed border */
@@ -215,7 +184,6 @@
         /* Light blue background */
         transition: all 0.3s ease;
     }
-
     .upload-zone-success {
         border: 2px dashed #28a745 !important;
         /* Success color dashed border */
@@ -223,19 +191,15 @@
         /* Light green background */
         transition: all 0.3s ease;
     }
-
     /* Hover effect on dropzone for visual feedback */
     .upload-zone-primary:hover {
         background-color: #e8f0fe !important;
     }
-
     .upload-zone-success:hover {
         background-color: #e8fdf5 !important;
     }
-
     /* Icon Animation (using a simple keyframe) */
     @keyframes bounce {
-
         0%,
         20%,
         50%,
@@ -243,60 +207,48 @@
         100% {
             transform: translateY(0);
         }
-
         40% {
             transform: translateY(-10px);
         }
-
         60% {
             transform: translateY(-5px);
         }
     }
-
     .bounce.animated {
         animation: bounce 2s infinite;
     }
-
     /* Button Hover State */
     .btn-hover:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
-
     /* Processing Alert Enhancements */
     .bg-gradient-info {
         background: linear-gradient(135deg, #17a2b8, #20c997) !important;
     }
-
     .animate-pulse {
         animation: pulse 1.5s infinite;
     }
-
     @keyframes pulse {
         0% {
             opacity: 0.75;
         }
-
         50% {
             opacity: 1;
         }
-
         100% {
             opacity: 0.75;
         }
     }
 </style>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-
         // --------------------------
         // 📌 File Preview Helper
         // --------------------------
         function displayFiles(files, listId, previewId) {
             const fileList = document.getElementById(listId);
             fileList.innerHTML = '';
-
             Array.from(files).forEach((file, index) => {
                 const li = document.createElement('li');
                 li.className = 'd-flex align-items-center justify-content-between mb-2';
@@ -306,11 +258,9 @@
             `;
                 fileList.appendChild(li);
             });
-
             document.getElementById(previewId).style.display =
                 fileList.children.length > 0 ? 'block' : 'none';
         }
-
         // --------------------------
         // 📌 Remove File
         // --------------------------
@@ -318,32 +268,25 @@
             const inputId = listId === 'receiptFileList'
                 ? 'receiptFileInput'
                 : 'stickerFileInput';
-
             const input = document.getElementById(inputId);
             const dt = new DataTransfer();
-
             Array.from(input.files).forEach((file, i) => {
                 if (i !== index) dt.items.add(file);
             });
-
             input.files = dt.files;
             displayFiles(dt.files, listId, listId.replace("List", "Preview"));
         };
-
         // --------------------------
         // 📌 Handle Drag/Drop & File Select
         // --------------------------
         function handleFiles(files, inputId, listId, previewId) {
             const input = document.getElementById(inputId);
             const dt = new DataTransfer();
-
             Array.from(input.files).forEach(file => dt.items.add(file));
             Array.from(files).forEach(file => dt.items.add(file));
-
             input.files = dt.files;
             displayFiles(dt.files, listId, previewId);
         }
-
         // --------------------------
         // 📌 Upload Function
         // --------------------------
@@ -358,7 +301,6 @@
             const timePerFileSeconds = 5; // Adjust this estimate as needed (e.g., 10 for slower OCR)
             const totalTimeSeconds = timePerFileSeconds * numFiles;
             const phaseDurationMs = (totalTimeSeconds / 4) * 1000; // Divide into 4 phases
-
             // Define phases based on type
             let phases = [];
             if (type === 'receipts') {
@@ -376,7 +318,6 @@
                     'Saving to database...'
                 ];
             }
-
             const formData = new FormData();
             Array.from(input.files).forEach(f => formData.append("files", f));
             formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
@@ -408,7 +349,6 @@
                     let html = '';
                     let icon = 'success';
                     let title = 'Upload Complete!';
-
                     if (data.success) {
                         // Build table for accepted/rejected
                         html = `<strong>${data.accepted} ${type} accepted | ${data.rejected} rejected</strong><br><br>`;
@@ -487,27 +427,21 @@
                     Swal.fire("Error", "Something went wrong: " + err.message, "error");
                 });
         }
-
-
         // Ab buttons pe lagao
         document.getElementById("receiptUploadBtn").onclick = () => {
             uploadWithFeedback("receiptFileInput", "/receipts/", "receipts");
         };
-
         document.getElementById("stickerUploadBtn").onclick = () => {
             uploadWithFeedback("stickerFileInput", "/stickers/", "stickers");
         };
-
         // --------------------------
         // Receipt Section
         // --------------------------
         const rInput = document.getElementById("receiptFileInput");
         document.getElementById("receiptDropzone").onclick = () => rInput.click();
         rInput.addEventListener("change", () => displayFiles(rInput.files, "receiptFileList", "receiptFilePreview"));
-
         document.getElementById("receiptUploadBtn")
             .addEventListener("click", () => uploadFiles("receiptFileInput", "/receipts/"));
-
         // Drag/drop
         const rDrop = document.getElementById("receiptDropzone");
         rDrop.addEventListener("dragover", e => e.preventDefault());
@@ -515,17 +449,14 @@
             e.preventDefault();
             handleFiles(e.dataTransfer.files, "receiptFileInput", "receiptFileList", "receiptFilePreview");
         });
-
         // --------------------------
         // Sticker Section
         // --------------------------
         const sInput = document.getElementById("stickerFileInput");
         document.getElementById("stickerDropzone").onclick = () => sInput.click();
         sInput.addEventListener("change", () => displayFiles(sInput.files, "stickerFileList", "stickerFilePreview"));
-
         document.getElementById("stickerUploadBtn")
             .addEventListener("click", () => uploadFiles("stickerFileInput", "/stickers/"));
-
         // Drag/drop
         const sDrop = document.getElementById("stickerDropzone");
         sDrop.addEventListener("dragover", e => e.preventDefault());
@@ -539,7 +470,6 @@
     // --------------------------
     // ⭐ NEW BARCODE SCANNING UPLOAD LOGIC (Add Only — Do NOT Remove Anything)
     // --------------------------
-
     document.getElementById("stickerUploadBtn").onclick = () => {
         const input = document.getElementById("stickerFileInput");
         if (input.files.length === 0) {
@@ -550,14 +480,12 @@
         const timePerFileSeconds = 5; // Adjust this estimate as needed (e.g., 3 for faster scanning)
         const totalTimeSeconds = timePerFileSeconds * numFiles;
         const phaseDurationMs = (totalTimeSeconds / 4) * 1000; // Divide into 4 phases
-
         const phases = [
             'Validating files...',
             'Processing images...',
             'Scanning barcodes...',
             'Saving to database...'
         ];
-
         const formData = new FormData();
         Array.from(input.files).forEach(f => formData.append("files", f));
         formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
@@ -621,5 +549,4 @@
             });
     };
 </script>
-
 {% endblock %}

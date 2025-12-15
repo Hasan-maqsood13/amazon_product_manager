@@ -1,0 +1,494 @@
+{% extends 'AB_base.html' %}
+{% block title %} All Stickers {% endblock %}
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">All Stickers</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="stickerList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
+                                    <div>
+                                        <button type="button" class="btn btn-success add-btn" data-bs-toggle="modal"
+                                            id="create-btn" data-bs-target="#showModal">
+                                            <i class="ri-add-line align-bottom me-1"></i> Add
+                                        </button>
+                                        <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleStickers()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="searchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="stickerTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleSelectAll(this)">
+                                                </div>
+                                            </th>
+                                            <th>ID</th>
+                                            <th class="sort" onclick="sortTable(2)">Original Filename</th>
+                                            <th class="sort" onclick="sortTable(3)">Status</th>
+                                            <th class="sort" onclick="sortTable(4)">Upload Date</th>
+                                            <th class="sort" onclick="sortTable(5)">File Size (KB)</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="stickerTableBody">
+                                        {% for sticker in stickers %}
+                                        <tr id="row-{{ sticker.id }}">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input row-checkbox" type="checkbox"
+                                                           name="chk_child" value="{{ sticker.id }}">
+                                                </div>
+                                            </th>
+                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="filename">{{ sticker.original_filename }}</td>
+                                            <td class="status">
+                                                <span class="badge bg-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                    {{ sticker.status|title }}
+                                                </span>
+                                            </td>
+                                            <td class="date">{{ sticker.upload_date|date:"d M, Y" }}</td>
+                                            <td class="size">{{ sticker.file_size|floatformat:0 }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="window.location.href='{% url 'sticker_details' sticker.id %}'">
+                                                        View
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteRecordModal"
+                                                        data-sticker-id="{{ sticker.id }}">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">No stickers found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="noResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched more than 150+ stickers but did not find any matches.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="pagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Delete Single Record Modal -->
+<div class="modal fade zoomIn" id="deleteRecordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mt-2 text-center">
+                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
+                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
+                        <h4>Are you sure?</h4>
+                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this record?</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteSingle">Yes, Delete It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Global variables
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let allStickers = [];
+    let filteredStickers = [];
+    let currentStickerId = null;
+    let sortColumn = null;
+    let sortDirection = 'asc';
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all stickers from table
+        const rows = document.querySelectorAll('#stickerTableBody tr');
+        allStickers = Array.from(rows).filter(row => !row.classList.contains('no-data'));
+       
+        // Store original data in each row
+        allStickers.forEach((row, index) => {
+            row.dataset.index = index;
+            const cells = row.querySelectorAll('td');
+            row.dataset.filename = cells[1]?.textContent || '';
+            row.dataset.status = cells[2]?.querySelector('.badge')?.textContent.trim() || '';
+            row.dataset.date = cells[3]?.textContent || '';
+            row.dataset.size = cells[4]?.textContent || '';
+        });
+        filteredStickers = [...allStickers];
+       
+        // Initialize pagination
+        setupPagination();
+        showPage(1);
+       
+        // Setup search
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            filterTable(e.target.value);
+        });
+       
+        // Setup single delete modal
+        const deleteModal = document.getElementById('deleteRecordModal');
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentStickerId = button.getAttribute('data-sticker-id');
+        });
+       
+        // Confirm single delete
+        document.getElementById('confirmDeleteSingle').addEventListener('click', function() {
+            deleteSingleSticker(currentStickerId);
+        });
+       
+        // Setup checkbox events
+        document.getElementById('checkAll').addEventListener('change', function() {
+            toggleSelectAll(this);
+        });
+       
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllCheckbox();
+            });
+        });
+    });
+    // Filter table based on search input
+    function filterTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+       
+        if (!searchTerm) {
+            filteredStickers = [...allStickers];
+        } else {
+            filteredStickers = allStickers.filter(row => {
+                return (
+                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.filename.toLowerCase().includes(searchTerm) ||
+                    row.dataset.status.toLowerCase().includes(searchTerm) ||
+                    row.dataset.date.toLowerCase().includes(searchTerm) ||
+                    row.dataset.size.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+       
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredStickers.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+       
+        // Reset to first page
+        currentPage = 1;
+        setupPagination();
+        showPage(currentPage);
+    }
+    // Sort table
+    function sortTable(columnIndex) {
+        if (sortColumn === columnIndex) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = columnIndex;
+            sortDirection = 'asc';
+        }
+       
+        filteredStickers.sort((a, b) => {
+            let aValue, bValue;
+           
+            switch(columnIndex) {
+                case 2: // Filename
+                    aValue = a.dataset.filename.toLowerCase();
+                    bValue = b.dataset.filename.toLowerCase();
+                    break;
+                case 3: // Status
+                    aValue = a.dataset.status.toLowerCase();
+                    bValue = b.dataset.status.toLowerCase();
+                    break;
+                case 4: // Date
+                    aValue = new Date(a.dataset.date);
+                    bValue = new Date(b.dataset.date);
+                    break;
+                case 5: // Size
+                    aValue = parseFloat(a.dataset.size) || 0;
+                    bValue = parseFloat(b.dataset.size) || 0;
+                    break;
+                default:
+                    return 0;
+            }
+           
+            if (sortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+       
+        showPage(currentPage);
+    }
+    // Setup pagination
+    function setupPagination() {
+        const totalPages = Math.ceil(filteredStickers.length / rowsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        paginationDiv.innerHTML = '';
+       
+        if (totalPages <= 1) return;
+       
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+       
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+       
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+    // Change page
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(filteredStickers.length / rowsPerPage)) return;
+        currentPage = page;
+        showPage(page);
+        setupPagination();
+    }
+    // Show specific page
+    function showPage(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageRows = filteredStickers.slice(start, end);
+       
+        // Hide all rows
+        allStickers.forEach(row => {
+            row.style.display = 'none';
+        });
+       
+        // Show only rows for current page
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+    // Toggle select all checkboxes
+    function toggleSelectAll(source) {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = source.checked;
+        });
+    }
+    // Update select all checkbox based on individual checkboxes
+    function updateSelectAllCheckbox() {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+       
+        const selectAllCheckbox = document.getElementById('checkAll');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+    // Delete single sticker
+    function deleteSingleSticker(stickerId) {
+        if (!stickerId) return;
+       
+        fetch(`{% url 'delete_sticker' 0 %}`.replace('0', stickerId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove row from table
+                const row = document.getElementById(`row-${stickerId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allStickers = allStickers.filter(r => r.id !== `row-${stickerId}`);
+                    filteredStickers = filteredStickers.filter(r => r.id !== `row-${stickerId}`);
+                   
+                    // Update pagination
+                    setupPagination();
+                    showPage(currentPage);
+                }
+               
+                // Show success message
+                showToast('Success', data.message, 'success');
+               
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRecordModal'));
+                modal.hide();
+            } else {
+                showToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+    // Delete multiple stickers
+    function deleteMultipleStickers() {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+       
+        if (selectedIds.length === 0) {
+            showToast('Warning', 'Please select at least one sticker to delete.', 'warning');
+            return;
+        }
+       
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected sticker(s)?`)) {
+            return;
+        }
+       
+        fetch(`{% url 'delete_multiple_stickers' %}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`row-${id}`);
+                    if (row) row.remove();
+                });
+               
+                // Update arrays
+                allStickers = allStickers.filter(row => {
+                    const rowId = parseInt(row.id.replace('row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredStickers = filteredStickers.filter(row => {
+                    const rowId = parseInt(row.id.replace('row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+               
+                // Update pagination
+                setupPagination();
+                showPage(currentPage);
+               
+                // Reset select all checkbox
+                document.getElementById('checkAll').checked = false;
+                document.getElementById('checkAll').indeterminate = false;
+               
+                showToast('Success', data.message, 'success');
+            } else {
+                showToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+    // Toast notification function
+    function showToast(title, message, type = 'info') {
+        // You can integrate with your existing toast system or use a simple alert
+        // For now, using alert but you should replace with proper toast
+        alert(`${title}: ${message}`);
+    }
+</script>
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+   
+    .page-link {
+        color: #405189;
+    }
+   
+    .page-link:hover {
+        color: #405189;
+    }
+   
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+   
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+   
+    .table-checkbox {
+        width: 18px;
+        height: 18px;
+    }
+</style>
+{% endblock %}

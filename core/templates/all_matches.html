@@ -1,0 +1,478 @@
+{% extends 'AB_base.html' %}
+{% block title %} All Matches {% endblock %}
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">All Matched Items</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="matchList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
+                                    <div>
+                                        <button class="btn btn-soft-danger" onclick="deleteMultipleMatches()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="matchSearchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="matchTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAllMatches" onclick="toggleSelectAllMatches(this)">
+                                                </div>
+                                            </th>
+                                            <th>ID</th>
+                                            <th class="sort" onclick="sortMatchesTable(2)">Sticker Data ID</th>
+                                            <th class="sort" onclick="sortMatchesTable(3)">Receipt Item ID</th>
+                                            <th class="sort" onclick="sortMatchesTable(4)">Matched At</th>
+                                            <th class="sort" onclick="sortMatchesTable(5)">SKU</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="matchTableBody">
+                                        {% for match in matches %}
+                                        <tr id="match-row-{{ match.id }}">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input match-row-checkbox" type="checkbox"
+                                                           name="chk_child" value="{{ match.id }}">
+                                                </div>
+                                            </th>
+                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="sticker_data_id">{{ match.sticker_data.id }}</td>
+                                            <td class="receipt_item_id">{{ match.receipt_item.id }}</td>
+                                            <td class="matched_at">{{ match.matched_at|date:"d M, Y H:i" }}</td>
+                                            <td class="sku">{{ match.SKU }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="window.location.href='{% url 'match_details' match.id %}'">
+                                                        View Details
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteMatchModal"
+                                                        data-match-id="{{ match.id }}">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">No matches found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="matchNoResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched but did not find any matches.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="matchPagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Delete Match Modal -->
+<div class="modal fade zoomIn" id="deleteMatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mt-2 text-center">
+                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
+                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
+                        <h4>Are you sure?</h4>
+                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this match?</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteMatch">Yes, Delete It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Global variables for matches
+    let currentMatchPage = 1;
+    const matchesPerPage = 10;
+    let allMatches = [];
+    let filteredMatches = [];
+    let currentMatchId = null;
+    let matchSortColumn = null;
+    let matchSortDirection = 'asc';
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all matches from table
+        const rows = document.querySelectorAll('#matchTableBody tr');
+        allMatches = Array.from(rows).filter(row => !row.classList.contains('no-data'));
+       
+        // Store original data in each row
+        allMatches.forEach((row, index) => {
+            row.dataset.index = index;
+            const cells = row.querySelectorAll('td');
+            row.dataset.stickerDataId = cells[1]?.textContent || '';
+            row.dataset.receiptItemId = cells[2]?.textContent || '';
+            row.dataset.matchedAt = cells[3]?.textContent || '';
+            row.dataset.sku = cells[4]?.textContent || '';
+        });
+        filteredMatches = [...allMatches];
+       
+        // Initialize pagination
+        setupMatchesPagination();
+        showMatchesPage(1);
+       
+        // Setup search
+        document.getElementById('matchSearchInput').addEventListener('input', function(e) {
+            filterMatchesTable(e.target.value);
+        });
+       
+        // Setup delete modal
+        const deleteMatchModal = document.getElementById('deleteMatchModal');
+        deleteMatchModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentMatchId = button.getAttribute('data-match-id');
+        });
+       
+        // Confirm delete match
+        document.getElementById('confirmDeleteMatch').addEventListener('click', function() {
+            deleteSingleMatch(currentMatchId);
+        });
+       
+        // Setup checkbox events
+        document.getElementById('checkAllMatches').addEventListener('change', function() {
+            toggleSelectAllMatches(this);
+        });
+       
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.match-row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllMatchesCheckbox();
+            });
+        });
+    });
+    // Filter matches table based on search input
+    function filterMatchesTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+       
+        if (!searchTerm) {
+            filteredMatches = [...allMatches];
+        } else {
+            filteredMatches = allMatches.filter(row => {
+                return (
+                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.stickerDataId.toLowerCase().includes(searchTerm) ||
+                    row.dataset.receiptItemId.toLowerCase().includes(searchTerm) ||
+                    row.dataset.matchedAt.toLowerCase().includes(searchTerm) ||
+                    row.dataset.sku.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+       
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('matchNoResult');
+        if (filteredMatches.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+       
+        // Reset to first page
+        currentMatchPage = 1;
+        setupMatchesPagination();
+        showMatchesPage(currentMatchPage);
+    }
+    // Sort matches table
+    function sortMatchesTable(columnIndex) {
+        if (matchSortColumn === columnIndex) {
+            matchSortDirection = matchSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            matchSortColumn = columnIndex;
+            matchSortDirection = 'asc';
+        }
+       
+        filteredMatches.sort((a, b) => {
+            let aValue, bValue;
+           
+            switch(columnIndex) {
+                case 2: // Sticker Data ID
+                    aValue = parseInt(a.dataset.stickerDataId) || 0;
+                    bValue = parseInt(b.dataset.stickerDataId) || 0;
+                    break;
+                case 3: // Receipt Item ID
+                    aValue = parseInt(a.dataset.receiptItemId) || 0;
+                    bValue = parseInt(b.dataset.receiptItemId) || 0;
+                    break;
+                case 4: // Matched At
+                    aValue = new Date(a.dataset.matchedAt);
+                    bValue = new Date(b.dataset.matchedAt);
+                    break;
+                case 5: // SKU
+                    aValue = a.dataset.sku.toLowerCase();
+                    bValue = b.dataset.sku.toLowerCase();
+                    break;
+                default:
+                    return 0;
+            }
+           
+            if (matchSortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+       
+        showMatchesPage(currentMatchPage);
+    }
+    // Setup matches pagination
+    function setupMatchesPagination() {
+        const totalPages = Math.ceil(filteredMatches.length / matchesPerPage);
+        const paginationDiv = document.getElementById('matchPagination');
+        paginationDiv.innerHTML = '';
+       
+        if (totalPages <= 1) return;
+       
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentMatchPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changeMatchesPage(${currentMatchPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+       
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentMatchPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changeMatchesPage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+       
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentMatchPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changeMatchesPage(${currentMatchPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+    // Change matches page
+    function changeMatchesPage(page) {
+        if (page < 1 || page > Math.ceil(filteredMatches.length / matchesPerPage)) return;
+        currentMatchPage = page;
+        showMatchesPage(page);
+        setupMatchesPagination();
+    }
+    // Show specific matches page
+    function showMatchesPage(page) {
+        const start = (page - 1) * matchesPerPage;
+        const end = start + matchesPerPage;
+        const pageRows = filteredMatches.slice(start, end);
+       
+        // Hide all rows
+        allMatches.forEach(row => {
+            row.style.display = 'none';
+        });
+       
+        // Show only rows for current page
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+    // Toggle select all matches checkboxes
+    function toggleSelectAllMatches(source) {
+        const checkboxes = document.querySelectorAll('.match-row-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = source.checked;
+        });
+    }
+    // Update select all matches checkbox
+    function updateSelectAllMatchesCheckbox() {
+        const checkboxes = document.querySelectorAll('.match-row-checkbox');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+       
+        const selectAllCheckbox = document.getElementById('checkAllMatches');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+    // Delete single match
+    function deleteSingleMatch(matchId) {
+        if (!matchId) return;
+       
+        fetch(`{% url 'delete_match' 0 %}`.replace('0', matchId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove row from table
+                const row = document.getElementById(`match-row-${matchId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allMatches = allMatches.filter(r => r.id !== `match-row-${matchId}`);
+                    filteredMatches = filteredMatches.filter(r => r.id !== `match-row-${matchId}`);
+                   
+                    // Update pagination
+                    setupMatchesPagination();
+                    showMatchesPage(currentMatchPage);
+                }
+               
+                showMatchesToast('Success', data.message, 'success');
+               
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteMatchModal'));
+                modal.hide();
+            } else {
+                showMatchesToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMatchesToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+    // Delete multiple matches
+    function deleteMultipleMatches() {
+        const selectedIds = Array.from(document.querySelectorAll('.match-row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+       
+        if (selectedIds.length === 0) {
+            showMatchesToast('Warning', 'Please select at least one match to delete.', 'warning');
+            return;
+        }
+       
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected match(es)?`)) {
+            return;
+        }
+       
+        fetch(`{% url 'delete_multiple_matches' %}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`match-row-${id}`);
+                    if (row) row.remove();
+                });
+               
+                // Update arrays
+                allMatches = allMatches.filter(row => {
+                    const rowId = parseInt(row.id.replace('match-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredMatches = filteredMatches.filter(row => {
+                    const rowId = parseInt(row.id.replace('match-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+               
+                // Update pagination
+                setupMatchesPagination();
+                showMatchesPage(currentMatchPage);
+               
+                // Reset select all checkbox
+                document.getElementById('checkAllMatches').checked = false;
+                document.getElementById('checkAllMatches').indeterminate = false;
+               
+                showMatchesToast('Success', data.message, 'success');
+            } else {
+                showMatchesToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMatchesToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+    // Toast notification for matches
+    function showMatchesToast(title, message, type = 'info') {
+        alert(`${title}: ${message}`);
+    }
+</script>
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+   
+    .page-link {
+        color: #405189;
+    }
+   
+    .page-link:hover {
+        color: #405189;
+    }
+   
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+   
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}

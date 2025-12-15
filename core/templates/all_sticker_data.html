@@ -1,0 +1,614 @@
+{% extends 'AB_base.html' %}
+{% block title %} All Sticker Data {% endblock %}
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">All Sticker Data</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="dataList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
+                                    <div>
+                                        <button type="button" class="btn btn-success add-btn" data-bs-toggle="modal"
+                                            id="create-btn" data-bs-target="#showModal">
+                                            <i class="ri-add-line align-bottom me-1"></i> Add
+                                        </button>
+                                        <button class="btn btn-soft-danger" onclick="deleteMultipleData()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="dataSearchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="dataTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAllData" onclick="toggleSelectAllData(this)">
+                                                </div>
+                                            </th>
+                                            <th>ID</th>
+                                            <th class="sort" onclick="sortDataTable(2)">Original Filename</th>
+                                            <th class="sort" onclick="sortDataTable(3)">Barcode</th>
+                                            <th class="sort" onclick="sortDataTable(4)">Status</th>
+                                            <th class="sort" onclick="sortDataTable(5)">Matching Status</th>
+                                            <th class="sort" onclick="sortDataTable(6)">Upload Date</th>
+                                            <th class="sort" onclick="sortDataTable(7)">File Size (KB)</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="dataTableBody">
+                                        {% for data in sticker_data %}
+                                        <tr id="data-row-{{ data.id }}">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input data-row-checkbox" type="checkbox"
+                                                           name="chk_child" value="{{ data.id }}">
+                                                </div>
+                                            </th>
+                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="filename">{{ data.original_filename }}</td>
+                                            <td class="barcode">{{ data.barcode|default:"N/A" }}</td>
+                                            <td class="status">
+                                                <span class="badge bg-{% if data.status == 'processed' %}success{% elif data.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if data.status == 'processed' %}success{% elif data.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                    {{ data.status|title }}
+                                                </span>
+                                            </td>
+                                            <td class="matching_status">
+                                                <span class="badge bg-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %}-subtle text-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                    {{ data.matching_status|title }}
+                                                </span>
+                                            </td>
+                                            <td class="date">{{ data.upload_date|date:"d M, Y" }}</td>
+                                            <td class="size">{{ data.file_size|floatformat:0 }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <!-- View Details Button -->
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="window.location.href='{% url 'sticker_data_details' data.id %}'">
+                                                        View Details
+                                                    </button>
+                                                   
+                                                    <!-- Edit Button -->
+                                                    <button class="btn btn-sm btn-warning edit-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#editDataModal"
+                                                        data-item-id="{{ data.id }}"
+                                                        data-filename="{{ data.original_filename }}"
+                                                        data-barcode="{{ data.barcode }}"
+                                                        data-status="{{ data.status }}"
+                                                        data-matching="{{ data.matching_status }}">
+                                                        Edit
+                                                    </button>
+                                                   
+                                                    <!-- Remove Button -->
+                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteDataModal"
+                                                        data-item-id="{{ data.id }}">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="9" class="text-center">No sticker data found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="dataNoResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched but did not find any matches.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="dataPagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Delete Item Modal -->
+<div class="modal fade zoomIn" id="deleteDataModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mt-2 text-center">
+                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
+                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
+                        <h4>Are you sure?</h4>
+                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this item?</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteData">Yes, Delete It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Edit Data Modal -->
+<div class="modal fade" id="editDataModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="editDataForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Sticker Data</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="item_id" name="item_id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Original Filename</label>
+                            <input type="text" class="form-control" name="original_filename" id="original_filename">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Barcode</label>
+                            <input type="text" class="form-control" name="barcode" id="barcode">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit-status" class="form-label">Status</label>
+                            <select class="form-select" id="edit-status" name="status" required>
+                                <option value="pending">Pending</option>
+                                <option value="processed">Processed</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit-matching" class="form-label">Matching Status</label>
+                            <select class="form-select" id="edit-matching" name="matching_status" required>
+                                <option value="pending">Pending</option>
+                                <option value="done">Done</option>
+                                <option value="unmatched">Unmatched</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // Global variables for data
+    let currentDataPage = 1;
+    const dataPerPage = 10;
+    let allData = [];
+    let filteredData = [];
+    let currentDataId = null;
+    let dataSortColumn = null;
+    let dataSortDirection = 'asc';
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all data from table
+        const rows = document.querySelectorAll('#dataTableBody tr');
+        allData = Array.from(rows).filter(row => !row.classList.contains('no-data'));
+       
+        // Store original data in each row
+        allData.forEach((row, index) => {
+            row.dataset.index = index;
+            const cells = row.querySelectorAll('td');
+            row.dataset.filename = cells[1]?.textContent || '';
+            row.dataset.barcode = cells[2]?.textContent || '';
+            row.dataset.status = cells[3]?.querySelector('.badge')?.textContent.trim() || '';
+            row.dataset.matchingStatus = cells[4]?.querySelector('.badge')?.textContent.trim() || '';
+            row.dataset.date = cells[5]?.textContent || '';
+            row.dataset.size = cells[6]?.textContent || '';
+        });
+        filteredData = [...allData];
+       
+        // Initialize pagination
+        setupDataPagination();
+        showDataPage(1);
+       
+        // Setup search
+        document.getElementById('dataSearchInput').addEventListener('input', function(e) {
+            filterDataTable(e.target.value);
+        });
+       
+        // Setup delete modal
+        const deleteDataModal = document.getElementById('deleteDataModal');
+        deleteDataModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentDataId = button.getAttribute('data-item-id');
+        });
+       
+        // Confirm delete data
+        document.getElementById('confirmDeleteData').addEventListener('click', function() {
+            deleteSingleData(currentDataId);
+        });
+       
+        // Setup edit modal
+        const editModal = document.getElementById('editDataModal');
+        editModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            loadDataForEdit(button);
+        });
+       
+        // Handle edit form submission
+        document.getElementById('editDataForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            updateData();
+        });
+       
+        // Setup checkbox events
+        document.getElementById('checkAllData').addEventListener('change', function() {
+            toggleSelectAllData(this);
+        });
+       
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.data-row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllDataCheckbox();
+            });
+        });
+    });
+    // Filter data table based on search input
+    function filterDataTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+       
+        if (!searchTerm) {
+            filteredData = [...allData];
+        } else {
+            filteredData = allData.filter(row => {
+                return (
+                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.filename.toLowerCase().includes(searchTerm) ||
+                    row.dataset.barcode.toLowerCase().includes(searchTerm) ||
+                    row.dataset.status.toLowerCase().includes(searchTerm) ||
+                    row.dataset.matchingStatus.toLowerCase().includes(searchTerm) ||
+                    row.dataset.date.toLowerCase().includes(searchTerm) ||
+                    row.dataset.size.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+       
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('dataNoResult');
+        if (filteredData.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+       
+        // Reset to first page
+        currentDataPage = 1;
+        setupDataPagination();
+        showDataPage(currentDataPage);
+    }
+    // Sort data table
+    function sortDataTable(columnIndex) {
+        if (dataSortColumn === columnIndex) {
+            dataSortDirection = dataSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            dataSortColumn = columnIndex;
+            dataSortDirection = 'asc';
+        }
+       
+        filteredData.sort((a, b) => {
+            let aValue, bValue;
+           
+            switch(columnIndex) {
+                case 2: // Filename
+                    aValue = a.dataset.filename.toLowerCase();
+                    bValue = b.dataset.filename.toLowerCase();
+                    break;
+                case 3: // Barcode
+                    aValue = a.dataset.barcode.toLowerCase();
+                    bValue = b.dataset.barcode.toLowerCase();
+                    break;
+                case 4: // Status
+                    aValue = a.dataset.status.toLowerCase();
+                    bValue = b.dataset.status.toLowerCase();
+                    break;
+                case 5: // Matching Status
+                    aValue = a.dataset.matchingStatus.toLowerCase();
+                    bValue = b.dataset.matchingStatus.toLowerCase();
+                    break;
+                case 6: // Date
+                    aValue = new Date(a.dataset.date);
+                    bValue = new Date(b.dataset.date);
+                    break;
+                case 7: // Size
+                    aValue = parseFloat(a.dataset.size) || 0;
+                    bValue = parseFloat(b.dataset.size) || 0;
+                    break;
+                default:
+                    return 0;
+            }
+           
+            if (dataSortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+       
+        showDataPage(currentDataPage);
+    }
+    // Setup data pagination
+    function setupDataPagination() {
+        const totalPages = Math.ceil(filteredData.length / dataPerPage);
+        const paginationDiv = document.getElementById('dataPagination');
+        paginationDiv.innerHTML = '';
+       
+        if (totalPages <= 1) return;
+       
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentDataPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changeDataPage(${currentDataPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+       
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentDataPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changeDataPage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+       
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentDataPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changeDataPage(${currentDataPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+    // Change data page
+    function changeDataPage(page) {
+        if (page < 1 || page > Math.ceil(filteredData.length / dataPerPage)) return;
+        currentDataPage = page;
+        showDataPage(page);
+        setupDataPagination();
+    }
+    // Show specific data page
+    function showDataPage(page) {
+        const start = (page - 1) * dataPerPage;
+        const end = start + dataPerPage;
+        const pageRows = filteredData.slice(start, end);
+       
+        // Hide all rows
+        allData.forEach(row => {
+            row.style.display = 'none';
+        });
+       
+        // Show only rows for current page
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+    // Toggle select all data checkboxes
+    function toggleSelectAllData(source) {
+        const checkboxes = document.querySelectorAll('.data-row-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = source.checked;
+        });
+    }
+    // Update select all data checkbox
+    function updateSelectAllDataCheckbox() {
+        const checkboxes = document.querySelectorAll('.data-row-checkbox');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+       
+        const selectAllCheckbox = document.getElementById('checkAllData');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+    // Load data for editing
+    function loadDataForEdit(button) {
+        document.getElementById("item_id").value = button.dataset.itemId;
+        document.getElementById("original_filename").value = button.dataset.filename;
+        document.getElementById("barcode").value = button.dataset.barcode;
+        document.getElementById("edit-status").value = button.dataset.status;
+        document.getElementById("edit-matching").value = button.dataset.matching;
+    }
+    // Update data
+    function updateData() {
+        const form = document.getElementById('editDataForm');
+        const formData = new FormData(form);
+       
+        fetch("{% url 'update_sticker_data' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrftoken
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Refresh the page or update the row
+                location.reload();
+            } else {
+                showDataToast('Error', data.error || 'Update failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showDataToast('Error', 'An error occurred during update', 'error');
+        });
+    }
+    // Delete single data
+    function deleteSingleData(dataId) {
+        if (!dataId) return;
+       
+        fetch(`/sticker-data/delete/${dataId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove row from table
+                const row = document.getElementById(`data-row-${dataId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allData = allData.filter(r => r.id !== `data-row-${dataId}`);
+                    filteredData = filteredData.filter(r => r.id !== `data-row-${dataId}`);
+                   
+                    // Update pagination
+                    setupDataPagination();
+                    showDataPage(currentDataPage);
+                }
+               
+                showDataToast('Success', 'Sticker data deleted successfully', 'success');
+               
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteDataModal'));
+                modal.hide();
+            } else {
+                showDataToast('Error', data.error || 'Deletion failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showDataToast('Error', 'An error occurred during deletion', 'error');
+        });
+    }
+    // Delete multiple data
+    function deleteMultipleData() {
+        const selectedIds = Array.from(document.querySelectorAll('.data-row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+       
+        if (selectedIds.length === 0) {
+            showDataToast('Warning', 'Please select at least one sticker data to delete', 'warning');
+            return;
+        }
+       
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected item(s)?`)) {
+            return;
+        }
+       
+        fetch('/sticker-data/delete-multiple/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`data-row-${id}`);
+                    if (row) row.remove();
+                });
+               
+                // Update arrays
+                allData = allData.filter(row => {
+                    const rowId = parseInt(row.id.replace('data-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredData = filteredData.filter(row => {
+                    const rowId = parseInt(row.id.replace('data-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+               
+                // Update pagination
+                setupDataPagination();
+                showDataPage(currentDataPage);
+               
+                // Reset select all checkbox
+                document.getElementById('checkAllData').checked = false;
+                document.getElementById('checkAllData').indeterminate = false;
+               
+                showDataToast('Success', `${selectedIds.length} sticker data deleted successfully`, 'success');
+            } else {
+                showDataToast('Error', data.error || 'Deletion failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showDataToast('Error', 'An error occurred during deletion', 'error');
+        });
+    }
+    // Toast notification for data
+    function showDataToast(title, message, type = 'info') {
+        alert(`${title}: ${message}`);
+    }
+</script>
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+   
+    .page-link {
+        color: #405189;
+    }
+   
+    .page-link:hover {
+        color: #405189;
+    }
+   
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+   
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}

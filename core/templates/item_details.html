@@ -1,0 +1,116 @@
+{% extends 'AB_base.html' %}
+{% block title %} Item Details - #{{ item.id }} {% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">Details for Item #{{ item.id }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-bordered">
+                                    <tbody>
+                                        <tr>
+                                            <th>ID</th>
+                                            <td>#{{ item.id }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Receipt ID</th>
+                                            <td>
+                                                <a href="{% url 'receipt_details' item.receipt.id %}" class="fw-medium link-primary">
+                                                    #{{ item.receipt.id }}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Line Number</th>
+                                            <td>{{ item.line_number }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>SKU</th>
+                                            <td>{{ item.sku|default:"N/A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Product Name</th>
+                                            <td>{{ item.product_name|default:"N/A" }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-bordered">
+                                    <tbody>
+                                        <tr>
+                                            <th>Quantity</th>
+                                            <td>{{ item.quantity|default:"N/A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Unit Price</th>
+                                            <td>{{ item.unit_price|default:"N/A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Total Price</th>
+                                            <td>{{ item.total_price|default:"N/A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Status</th>
+                                            <td>
+                                                <span class="badge bg-{% if item.status == 'processed' %}success{% elif item.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if item.status == 'processed' %}success{% elif item.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                    {{ item.status|title }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Created At</th>
+                                            <td>{{ item.created_at|date:"d M, Y H:i" }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Additional Details -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Additional Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Raw Text</h6>
+                                                <pre class="bg-light p-3 rounded">{{ item.raw_text|default:"N/A" }}</pre>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6>Confidence Score</h6>
+                                                <p class="fs-4">{{ item.confidence_score|default:"N/A" }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="mt-4">
+                            <a href="{% url 'all_receipt_items' %}" class="btn btn-secondary">
+                                <i class="ri-arrow-left-line align-bottom me-1"></i> Back to All Items
+                            </a>
+                            <button class="btn btn-warning ms-2"
+                                onclick="window.location.href='{% url 'edit_receipt' item.id %}'">
+                                <i class="ri-edit-line align-bottom me-1"></i> Edit Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

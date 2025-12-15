@@ -1,0 +1,422 @@
+{% extends 'AB_base.html' %}
+{% load static %}
+{% block title %} Admin Dashboard {% endblock title %}
+{% block content %}
+<div class="page-content">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+        <div class="page-title-box d-flex align-items-center justify-content-between">
+          <h4 class="mb-0">All Departments</h4>
+          <div class="page-title-right">
+            <ol class="breadcrumb m-0">
+              <li class="breadcrumb-item"><a href="javascript: void(0);">Department</a></li>
+              <li class="breadcrumb-item active">All Departments</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="card-title mb-0"><b>Departments</b></h4>
+          </div>
+          <div class="card-body">
+            <div class="listjs-table" id="customerList">
+              <div class="row g-4 mb-3">
+                <div class="col-sm-auto">
+                  <div>
+                    <a href="{% url 'adddepartment' %}" style="text-decoration: none; color: aliceblue;">
+                      <button type="button" class="btn btn-success add-btn">Add New Department</button>
+                    </a>
+                    <button class="btn btn-soft-danger" onClick="deleteMultipleDepartments()">
+                      <i class="ri-delete-bin-2-line"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-sm">
+                  <div class="d-flex justify-content-sm-end">
+                    <!--For Search Bar-->
+                    <div class="search-box ms-2">
+                      <input type="text" class="form-control search" id="searchInput" placeholder="Search...">
+                      <i class="ri-search-line search-icon"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive table-card mt-3 mb-1">
+                <table class="table align-middle table-nowrap text-center" id="customerTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col" style="width: 50px;">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" id="checkAll" value="option">
+                        </div>
+                      </th>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Code</th>
+                      <th>Head of Dept.</th>
+                      <th>Total Employees</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="list form-check-all" id="departmentsTableBody">
+                    {% for department in departments %}
+                    <tr class="department-row">
+                      <th scope="row">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="chk_child" value="{{ department.id }}">
+                        </div>
+                      </th>
+                      <!-- Yahan ID ki jagah serial number show karein -->
+                      <td class="serial-number">{{ departments.start_index|add:forloop.counter0 }}</td>
+                      <td class="name">{{ department.name }}</td>
+                      <td class="code">{{ department.code }}</td>
+                      <td class="head_of_department">
+                        {% if department.head_of_department %}
+                        {{ department.head_of_department.first_name }} {{ department.head_of_department.last_name }}
+                        <br><small class="text-muted">{{ department.head_of_department.employee_id }}</small>
+                        {% else %}
+                        <span class="text-muted">Not Assigned</span>
+                        {% endif %}
+                      </td>
+                      <td class="total_employees">
+                        <span class="badge bg-primary">{{ department.total_employees }}</span>
+                      </td>
+                      <td class="email">
+                        {% if department.email %}
+                        {{ department.email }}
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                      </td>
+                      <td class="phone">
+                        {% if department.phone %}
+                        {{ department.phone }}
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                      </td>
+                      <td class="status">
+                        <div class="dropdown">
+                          <button class="btn btn-sm dropdown-toggle status-btn
+              {% if department.status == 'Active' %}btn-soft-success
+              {% else %}btn-soft-danger{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                            id="status-btn-{{ department.id }}">
+                            {{ department.status }}
+                          </button>
+                          <ul class="dropdown-menu">
+                            <li><a class="dropdown-item status-option" href="#" data-status="Active"
+                                data-department-id="{{ department.id }}">Active</a></li>
+                            <li><a class="dropdown-item status-option" href="#" data-status="Inactive"
+                                data-department-id="{{ department.id }}">Inactive</a></li>
+                          </ul>
+                        </div>
+                      </td>
+                      <td>
+                        <ul class="list-inline hstack gap-2 mb-0">
+                          <!-- <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-trigger="hover"
+                            data-bs-placement="top" title="View Details">
+                            <a href="{% url 'view_department_details' department.id %}"
+                              class="text-info d-inline-block">
+                              <i class="ri-eye-fill fs-16"></i>
+                            </a>
+                          </li> -->
+                          <li class="list-inline-item edit" data-bs-toggle="tooltip" data-bs-trigger="hover"
+                            data-bs-placement="top" title="Edit">
+                            <a href="{% url 'edit_department' department.id %}"
+                              class="text-primary d-inline-block edit-item-btn">
+                              <i class="ri-pencil-fill fs-16"></i>
+                            </a>
+                          </li>
+                          <li class="list-inline-item" data-bs-toggle="tooltip" data-bs-trigger="hover"
+                            data-bs-placement="top" title="Remove">
+                            <a class="text-danger d-inline-block remove-item-btn" data-bs-toggle="modal"
+                              href="#deleteRecordModal" data-department-id="{{ department.id }}">
+                              <i class="ri-delete-bin-5-fill fs-16"></i>
+                            </a>
+                          </li>
+                        </ul>
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="10" class="text-center py-4">
+                        <div class="text-muted">
+                          <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                            colors="primary:#121331,secondary:#08a88a" style="width:75px;height:75px"></lord-icon>
+                          <h5 class="mt-2">No Departments Found</h5>
+                          <p class="mb-0">No departments have been added yet. <a href="{% url 'adddepartment' %}">Add
+                              the first department</a></p>
+                        </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+
+                <!-- No Result -->
+                <div class="noresult" id="noResult" style="display: none">
+                  <div class="text-center">
+                    <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                      colors="primary:#121331,secondary:#08a88a" style="width:75px;height:75px"></lord-icon>
+                    <h5 class="mt-2">Sorry! No Result Found</h5>
+                    <p class="text-muted mb-0">We did not find any department for your search.</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Pagination -->
+              {% if departments.has_other_pages %}
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                  <span class="text-muted">
+                    Showing {{ departments.start_index }} to {{ departments.end_index }} of {{
+                    departments.paginator.count }} entries
+                  </span>
+                </div>
+                <div class="pagination-wrap hstack gap-2">
+                  {% if departments.has_previous %}
+                  <a href="?page={{ departments.previous_page_number }}"
+                    class="page-item pagination-prev btn btn-sm btn-light">Previous</a>
+                  {% else %}
+                  <button class="page-item pagination-prev btn btn-sm btn-light" disabled>Previous</button>
+                  {% endif %}
+
+                  {% for i in departments.paginator.page_range %}
+                  {% if departments.number == i %}
+                  <span class="btn btn-sm btn-primary">{{ i }}</span>
+                  {% else %}
+                  <a href="?page={{ i }}" class="btn btn-sm btn-light">{{ i }}</a>
+                  {% endif %}
+                  {% endfor %}
+
+                  {% if departments.has_next %}
+                  <a href="?page={{ departments.next_page_number }}"
+                    class="page-item pagination-next btn btn-sm btn-light">Next</a>
+                  {% else %}
+                  <button class="page-item pagination-next btn btn-sm btn-light" disabled>Next</button>
+                  {% endif %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // ---------- URLS GENERATED BY DJANGO ----------
+    const deleteSingleUrlTemplate = "{% url 'delete_department' 0 %}"; // You'll need to create this URL
+    const deleteMultipleUrl = "{% url 'delete_multiple_departments' %}"; // You'll need to create this URL
+    const updateStatusUrlTemplate = "{% url 'update_department_status' 0 %}"; // You'll need to create this URL
+
+    // ---------- STATUS UPDATE ----------
+    function handleStatusUpdate(departmentId, newStatus) {
+      const finalUrl = updateStatusUrlTemplate.replace('0', departmentId);
+      fetch(finalUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ status: newStatus }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            Swal.fire('Success!', data.message, 'success');
+            const statusButton = document.getElementById(`status-btn-${departmentId}`);
+            if (statusButton) {
+              statusButton.textContent = newStatus;
+              statusButton.className = 'btn btn-sm dropdown-toggle status-btn'; // Reset classes
+              if (newStatus === 'Active') {
+                statusButton.classList.add('btn-soft-success');
+              } else {
+                statusButton.classList.add('btn-soft-danger');
+              }
+            }
+          } else {
+            Swal.fire('Error!', data.error || 'Failed to update status.', 'error');
+          }
+        })
+        .catch(error => Swal.fire('Error!', 'An unexpected error occurred.', 'error'));
+    }
+
+    document.querySelectorAll('.status-option').forEach(option => {
+      option.addEventListener('click', function (e) {
+        e.preventDefault();
+        const departmentId = this.dataset.departmentId;
+        const newStatus = this.dataset.status;
+        handleStatusUpdate(departmentId, newStatus);
+      });
+    });
+
+    // ---------- SELECT ALL CHECKBOX ----------
+    const checkAll = document.getElementById("checkAll");
+    const childChecks = document.querySelectorAll('input[name="chk_child"]');
+    checkAll.addEventListener("change", function () {
+      childChecks.forEach(chk => chk.checked = checkAll.checked);
+    });
+    childChecks.forEach(chk => {
+      chk.addEventListener("change", function () {
+        if (!this.checked) {
+          checkAll.checked = false;
+        } else if (document.querySelectorAll('input[name="chk_child"]:checked').length === childChecks.length) {
+          checkAll.checked = true;
+        }
+      });
+    });
+
+    // ---------- DELETE SINGLE DEPARTMENT ----------
+    document.querySelectorAll(".remove-item-btn").forEach(button => {
+      button.addEventListener("click", function () {
+        const departmentId = this.dataset.departmentId;
+        const name = this.closest("tr").querySelector(".name").textContent;
+        Swal.fire({
+          title: "Are you sure?",
+          text: `You are about to delete department: ${name}. This action cannot be undone!`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#d33",
+          cancelButtonColor: "#3085d6",
+          confirmButtonText: "Yes, delete it!"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            const finalUrl = deleteSingleUrlTemplate.replace('0', departmentId);
+            fetch(finalUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+              }
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  Swal.fire("Deleted!", data.message, "success").then(() => location.reload());
+                } else {
+                  Swal.fire("Error", data.error || "Delete failed", "error");
+                }
+              })
+              .catch(error => {
+                Swal.fire("Error", "An unexpected error occurred.", "error");
+              });
+          }
+        });
+      });
+    });
+
+    // ---------- DELETE MULTIPLE DEPARTMENTS ----------
+    window.deleteMultipleDepartments = function () {
+      const checked = document.querySelectorAll('input[name="chk_child"]:checked');
+      const ids = Array.from(checked).map(chk => chk.value);
+      if (ids.length === 0) {
+        Swal.fire("No selection", "Please select at least one department to delete.", "warning");
+        return;
+      }
+      Swal.fire({
+        title: "Are you sure?",
+        text: `You are about to delete ${ids.length} department(s). This action cannot be undone!`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete them!"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          fetch(deleteMultipleUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify({ ids: ids })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                Swal.fire("Deleted!", data.message, "success").then(() => location.reload());
+              } else {
+                Swal.fire("Error", data.error || "Delete failed", "error");
+              }
+            })
+            .catch(error => {
+              Swal.fire("Error", "An unexpected error occurred.", "error");
+            });
+        }
+      });
+    };
+
+    // ---------- SEARCH FUNCTIONALITY ----------
+    // ---------- SEARCH FUNCTIONALITY ----------
+    const itemsPerPage = 10;
+    let currentPage = 1;
+    const rows = Array.from(document.querySelectorAll(".department-row"));
+    const searchInput = document.getElementById("searchInput");
+    const noResult = document.getElementById("noResult");
+
+    function getFilteredRows() {
+      const term = searchInput.value.toLowerCase();
+      if (!term) return rows;
+      return rows.filter(r => r.textContent.toLowerCase().includes(term));
+    }
+
+    function showPage(page) {
+      const visibleRows = getFilteredRows();
+      const totalPages = Math.ceil(visibleRows.length / itemsPerPage) || 1;
+
+      // Hide all rows initially
+      rows.forEach(r => r.style.display = "none");
+
+      // Show only rows for the current page
+      const startIndex = (page - 1) * itemsPerPage;
+      const endIndex = page * itemsPerPage;
+
+      visibleRows.slice(startIndex, endIndex).forEach((r, index) => {
+        r.style.display = "";
+        // Update serial number
+        const serialCell = r.querySelector('.serial-number');
+        if (serialCell) {
+          serialCell.textContent = startIndex + index + 1;
+        }
+      });
+
+      // Update UI elements
+      noResult.style.display = visibleRows.length ? "none" : "block";
+    }
+
+    // Initial page load
+    showPage(currentPage);
+
+    searchInput.addEventListener("input", () => {
+      currentPage = 1;
+      showPage(1);
+    });
+
+
+    // Helper function to get CSRF token from cookies
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+  });
+</script>
+{% endblock %}

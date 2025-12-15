@@ -1,0 +1,669 @@
+{% extends 'AB_base.html' %}
+{% block title %} All Receipt Items {% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">All Receipt Items</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="itemList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
+                                    <div>
+                                        <button type="button" class="btn btn-success add-btn" data-bs-toggle="modal"
+                                            id="create-btn" data-bs-target="#showModal">
+                                            <i class="ri-add-line align-bottom me-1"></i> Add
+                                        </button>
+                                        <button class="btn btn-soft-danger" onclick="deleteMultipleItems()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="itemSearchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="itemTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAllItems" onclick="toggleSelectAllItems(this)">
+                                                </div>
+                                            </th>
+                                            <th>ID</th>
+                                            <th class="sort" onclick="sortItemsTable(2)">Receipt ID</th>
+                                            <th class="sort" onclick="sortItemsTable(3)">Line Number</th>
+                                            <th class="sort" onclick="sortItemsTable(4)">SKU</th>
+                                            <th class="sort" onclick="sortItemsTable(5)">Product Name</th>
+                                            <th class="sort" onclick="sortItemsTable(6)">Quantity</th>
+                                            <th class="sort" onclick="sortItemsTable(8)">Total Price</th>
+                                            <th class="sort" onclick="sortItemsTable(9)">Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="itemTableBody">
+                                        {% for item in receipt_items %}
+                                        <tr id="item-row-{{ item.id }}">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input item-row-checkbox" type="checkbox" 
+                                                           name="chk_child" value="{{ item.id }}">
+                                                </div>
+                                            </th>
+                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="receipt_id">{{ item.receipt.id }}</td>
+                                            <td class="line_number">{{ item.line_number }}</td>
+                                            <td class="sku">{{ item.sku|default:"N/A" }}</td>
+                                            <td class="product_name">{{ item.product_name|default:"N/A" }}</td>
+                                            <td class="quantity">{{ item.quantity|default:"N/A" }}</td>
+                                            <td class="total_price">{{ item.total_price|default:"N/A" }}</td>
+                                            <td class="status">
+                                                <span class="badge bg-{% if item.status == 'processed' %}success{% elif item.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if item.status == 'processed' %}success{% elif item.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                    {{ item.status|title }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <!-- View Details Button - Will redirect to a new page -->
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="window.location.href='{% url 'item_details' item.id %}'">
+                                                        View Details
+                                                    </button>
+                                                    
+                                                    <!-- Edit Button - Opens Modal -->
+                                                    <button class="btn btn-sm btn-warning edit-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#editItemModal"
+                                                        data-item-id="{{ item.id }}"
+                                                        data-line="{{ item.line_number }}"
+                                                        data-sku="{{ item.sku }}"
+                                                        data-product="{{ item.product_name }}"
+                                                        data-qty="{{ item.quantity }}"
+                                                        data-unit="{{ item.unit_price }}"
+                                                        data-total="{{ item.total_price }}"
+                                                        data-status="{{ item.status }}">
+                                                        Edit
+                                                    </button>
+                                                    
+                                                    <!-- Remove Button -->
+                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                        data-bs-toggle="modal" data-bs-target="#deleteItemModal"
+                                                        data-item-id="{{ item.id }}">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="11" class="text-center">No receipt items found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="itemNoResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched but did not find any matches.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="itemPagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Item Modal -->
+<div class="modal fade zoomIn" id="deleteItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mt-2 text-center">
+                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
+                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
+                        <h4>Are you sure?</h4>
+                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this item?</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteItem">Yes, Delete It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="editItemForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Receipt Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" id="item_id" name="item_id">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Product Name</label>
+                            <input type="text" class="form-control" name="product_name" id="product_name">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">SKU</label>
+                            <input type="text" class="form-control" name="sku" id="sku">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Line Number</label>
+                            <input type="number" class="form-control" name="line_number" id="line_number" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" step="0.01" class="form-control" name="quantity" id="quantity">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Total Price</label>
+                            <input type="number" step="0.01" class="form-control" name="total_price" id="total_price">
+                        </div>
+
+                        <div class="col-md-6">
+                        <label for="edit-status" class="form-label">Status</label>
+                        <select class="form-select" id="edit-status" name="status" required>
+                            <option value="pending">Pending</option>
+                            <option value="DONE">Done</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global variables for items
+    let currentItemPage = 1;
+    const itemsPerPage = 10;
+    let allItems = [];
+    let filteredItems = [];
+    let currentItemId = null;
+    let itemSortColumn = null;
+    let itemSortDirection = 'asc';
+
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all items from table
+        const rows = document.querySelectorAll('#itemTableBody tr');
+        allItems = Array.from(rows).filter(row => !row.classList.contains('no-data'));
+        
+        // Store original data in each row
+        allItems.forEach((row, index) => {
+            row.dataset.index = index;
+            const cells = row.querySelectorAll('td');
+            row.dataset.receiptId = cells[1]?.textContent || '';
+            row.dataset.lineNumber = cells[2]?.textContent || '';
+            row.dataset.sku = cells[3]?.textContent || '';
+            row.dataset.productName = cells[4]?.textContent || '';
+            row.dataset.quantity = cells[5]?.textContent || '';
+            row.dataset.unitPrice = cells[6]?.textContent || '';
+            row.dataset.totalPrice = cells[7]?.textContent || '';
+            row.dataset.status = cells[8]?.querySelector('.badge')?.textContent.trim() || '';
+        });
+
+        filteredItems = [...allItems];
+        
+        // Initialize pagination
+        setupItemsPagination();
+        showItemsPage(1);
+        
+        // Setup search
+        document.getElementById('itemSearchInput').addEventListener('input', function(e) {
+            filterItemsTable(e.target.value);
+        });
+        
+        // Setup delete modal
+        const deleteItemModal = document.getElementById('deleteItemModal');
+        deleteItemModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentItemId = button.getAttribute('data-item-id');
+        });
+        
+        // Confirm delete item
+        document.getElementById('confirmDeleteItem').addEventListener('click', function() {
+            deleteSingleItem(currentItemId);
+        });
+        
+        // Setup edit modal
+        const editModal = document.getElementById('editItemModal');
+        editModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            loadItemForEdit(button);
+        });
+        
+        // Handle edit form submission
+        document.getElementById('editItemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            updateItem();
+        });
+        
+        // Setup checkbox events
+        document.getElementById('checkAllItems').addEventListener('change', function() {
+            toggleSelectAllItems(this);
+        });
+        
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.item-row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllItemsCheckbox();
+            });
+        });
+    });
+
+    // Filter items table based on search input
+    function filterItemsTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+        
+        if (!searchTerm) {
+            filteredItems = [...allItems];
+        } else {
+            filteredItems = allItems.filter(row => {
+                return (
+                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.receiptId.toLowerCase().includes(searchTerm) ||
+                    row.dataset.lineNumber.toLowerCase().includes(searchTerm) ||
+                    row.dataset.sku.toLowerCase().includes(searchTerm) ||
+                    row.dataset.productName.toLowerCase().includes(searchTerm) ||
+                    row.dataset.quantity.toLowerCase().includes(searchTerm) ||
+                    row.dataset.unitPrice.toLowerCase().includes(searchTerm) ||
+                    row.dataset.totalPrice.toLowerCase().includes(searchTerm) ||
+                    row.dataset.status.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+        
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('itemNoResult');
+        if (filteredItems.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+        
+        // Reset to first page
+        currentItemPage = 1;
+        setupItemsPagination();
+        showItemsPage(currentItemPage);
+    }
+
+    // Sort items table
+    function sortItemsTable(columnIndex) {
+        if (itemSortColumn === columnIndex) {
+            itemSortDirection = itemSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            itemSortColumn = columnIndex;
+            itemSortDirection = 'asc';
+        }
+        
+        filteredItems.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch(columnIndex) {
+                case 2: // Receipt ID
+                    aValue = parseInt(a.dataset.receiptId) || 0;
+                    bValue = parseInt(b.dataset.receiptId) || 0;
+                    break;
+                case 3: // Line Number
+                    aValue = parseInt(a.dataset.lineNumber) || 0;
+                    bValue = parseInt(b.dataset.lineNumber) || 0;
+                    break;
+                case 4: // SKU
+                    aValue = a.dataset.sku.toLowerCase();
+                    bValue = b.dataset.sku.toLowerCase();
+                    break;
+                case 5: // Product Name
+                    aValue = a.dataset.productName.toLowerCase();
+                    bValue = b.dataset.productName.toLowerCase();
+                    break;
+                case 6: // Quantity
+                    aValue = parseFloat(a.dataset.quantity) || 0;
+                    bValue = parseFloat(b.dataset.quantity) || 0;
+                    break;
+                case 7: // Unit Price
+                    aValue = parseFloat(a.dataset.unitPrice) || 0;
+                    bValue = parseFloat(b.dataset.unitPrice) || 0;
+                    break;
+                case 8: // Total Price
+                    aValue = parseFloat(a.dataset.totalPrice) || 0;
+                    bValue = parseFloat(b.dataset.totalPrice) || 0;
+                    break;
+                case 9: // Status
+                    aValue = a.dataset.status.toLowerCase();
+                    bValue = b.dataset.status.toLowerCase();
+                    break;
+                default:
+                    return 0;
+            }
+            
+            if (itemSortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+        
+        showItemsPage(currentItemPage);
+    }
+
+    // Setup items pagination
+    function setupItemsPagination() {
+        const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        const paginationDiv = document.getElementById('itemPagination');
+        paginationDiv.innerHTML = '';
+        
+        if (totalPages <= 1) return;
+        
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentItemPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changeItemsPage(${currentItemPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+        
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentItemPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changeItemsPage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentItemPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changeItemsPage(${currentItemPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+
+    // Change items page
+    function changeItemsPage(page) {
+        if (page < 1 || page > Math.ceil(filteredItems.length / itemsPerPage)) return;
+        currentItemPage = page;
+        showItemsPage(page);
+        setupItemsPagination();
+    }
+
+    // Show specific items page
+    function showItemsPage(page) {
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageRows = filteredItems.slice(start, end);
+        
+        // Hide all rows
+        allItems.forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        // Show only rows for current page
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+
+    // Toggle select all items checkboxes
+    function toggleSelectAllItems(source) {
+        const checkboxes = document.querySelectorAll('.item-row-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = source.checked;
+        });
+    }
+
+    // Update select all items checkbox
+    function updateSelectAllItemsCheckbox() {
+        const checkboxes = document.querySelectorAll('.item-row-checkbox');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+        
+        const selectAllCheckbox = document.getElementById('checkAllItems');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+
+    // Load item data for editing
+    function loadItemForEdit(button) {
+        document.getElementById("item_id").value = button.dataset.itemId;
+        document.getElementById("line_number").value = button.dataset.line;
+        document.getElementById("sku").value = button.dataset.sku;
+        document.getElementById("product_name").value = button.dataset.product;
+        document.getElementById("quantity").value = button.dataset.qty;
+        document.getElementById("unit_price").value = button.dataset.unit;
+        document.getElementById("total_price").value = button.dataset.total;
+        document.getElementById("status").value = button.dataset.status;
+    }
+
+    // Update item
+    function updateItem() {
+        const form = document.getElementById('editItemForm');
+        const formData = new FormData(form);
+        
+        fetch("{% url 'update_receipt_item' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrftoken
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Refresh the page or update the row
+                location.reload();
+            } else {
+                showItemsToast('Error', data.error || 'Update failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showItemsToast('Error', 'An error occurred during update', 'error');
+        });
+    }
+
+    // Delete single item
+    function deleteSingleItem(itemId) {
+        if (!itemId) return;
+        
+        // You need to create this view in Django
+        // For now, I'll show how it would work
+        fetch(`/receipt-item/delete/${itemId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove row from table
+                const row = document.getElementById(`item-row-${itemId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allItems = allItems.filter(r => r.id !== `item-row-${itemId}`);
+                    filteredItems = filteredItems.filter(r => r.id !== `item-row-${itemId}`);
+                    
+                    // Update pagination
+                    setupItemsPagination();
+                    showItemsPage(currentItemPage);
+                }
+                
+                showItemsToast('Success', 'Item deleted successfully', 'success');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteItemModal'));
+                modal.hide();
+            } else {
+                showItemsToast('Error', data.error || 'Deletion failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showItemsToast('Error', 'An error occurred during deletion', 'error');
+        });
+    }
+
+    // Delete multiple items
+    function deleteMultipleItems() {
+        const selectedIds = Array.from(document.querySelectorAll('.item-row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+        
+        if (selectedIds.length === 0) {
+            showItemsToast('Warning', 'Please select at least one item to delete', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected item(s)?`)) {
+            return;
+        }
+        
+        // You need to create this view in Django
+        fetch('/receipt-item/delete-multiple/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`item-row-${id}`);
+                    if (row) row.remove();
+                });
+                
+                // Update arrays
+                allItems = allItems.filter(row => {
+                    const rowId = parseInt(row.id.replace('item-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredItems = filteredItems.filter(row => {
+                    const rowId = parseInt(row.id.replace('item-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                
+                // Update pagination
+                setupItemsPagination();
+                showItemsPage(currentItemPage);
+                
+                // Reset select all checkbox
+                document.getElementById('checkAllItems').checked = false;
+                document.getElementById('checkAllItems').indeterminate = false;
+                
+                showItemsToast('Success', `${selectedIds.length} items deleted successfully`, 'success');
+            } else {
+                showItemsToast('Error', data.error || 'Deletion failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showItemsToast('Error', 'An error occurred during deletion', 'error');
+        });
+    }
+
+    // Toast notification for items
+    function showItemsToast(title, message, type = 'info') {
+        alert(`${title}: ${message}`);
+    }
+</script>
+
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+    
+    .page-link {
+        color: #405189;
+    }
+    
+    .page-link:hover {
+        color: #405189;
+    }
+    
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+{% endblock %}
