@@ -1,0 +1,128 @@
+{% extends 'AB_base.html' %}
+{% block title %} Upload ASINs File {% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="fw-bold">📦 Upload ASINs File</h1>
+                <p class="text-muted">Upload a single CSV or Excel file containing ASIN data</p>
+            </div>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card shadow-lg border-0">
+            <div class="card-body p-5 text-center">
+
+                <input type="file" id="asinFileInput" accept=".csv,.xlsx,.xls" style="display:none;">
+
+                <div class="border border-dashed rounded-3 p-5 mb-4 bg-light"
+                     onclick="document.getElementById('asinFileInput').click()"
+                     style="cursor:pointer">
+                    <i class="ri-file-excel-line fs-48 text-success mb-3"></i>
+                    <h4 class="fw-bold">Click or Drag & Drop file here</h4>
+                    <p class="text-muted mb-0">Only 1 file allowed (.csv, .xls, .xlsx)</p>
+                </div>
+
+                <div id="fileName" class="mb-3 text-dark fw-semibold"></div>
+
+                <button class="btn btn-success btn-lg rounded-pill"
+                        onclick="uploadASINFile()">
+                    <i class="ri-upload-cloud-line me-1"></i> Upload File
+                </button>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Drag & Drop Support -->
+<script>
+const input = document.getElementById("asinFileInput");
+const fileNameDiv = document.getElementById("fileName");
+
+// Drag & drop
+const dropzone = document.querySelector(".border-dashed");
+dropzone.addEventListener("dragover", e => e.preventDefault());
+dropzone.addEventListener("drop", e => {
+    e.preventDefault();
+    if (e.dataTransfer.files.length > 1) {
+        Swal.fire("Only One File", "Upload only one file at a time", "warning");
+        return;
+    }
+    input.files = e.dataTransfer.files;
+    fileNameDiv.innerHTML = e.dataTransfer.files[0].name;
+});
+
+// Show file name on select
+input.addEventListener("change", function () {
+    if (this.files.length > 1) {
+        Swal.fire("Only One File", "Upload only one file at a time", "warning");
+        this.value = "";
+        fileNameDiv.innerHTML = "";
+        return;
+    }
+    fileNameDiv.innerHTML = this.files[0].name;
+});
+
+// Upload function
+function uploadASINFile() {
+    if (input.files.length === 0) {
+        Swal.fire("No File", "Please select a CSV or Excel file", "warning");
+        return;
+    }
+
+    if (input.files.length > 1) {
+        Swal.fire("Only One File", "Upload only one file at a time", "warning");
+        input.value = "";
+        fileNameDiv.innerHTML = "";
+        return;
+    }
+
+    const file = input.files[0];
+    const allowedExtensions = ['csv', 'xlsx', 'xls'];
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(ext)) {
+        Swal.fire("Invalid File", "Only CSV or Excel files allowed", "error");
+        input.value = "";
+        fileNameDiv.innerHTML = "";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+    Swal.fire({
+        title: "Uploading...",
+        html: "Please wait while we process your file",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    fetch("/asins/upload-file/", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire("Success!", data.message, "success");
+            input.value = "";
+            fileNameDiv.innerHTML = "";
+        } else {
+            Swal.fire("Error", data.message, "error");
+        }
+    })
+    .catch(err => {
+        Swal.fire("Error", "Something went wrong", "error");
+    });
+}
+</script>
+
+{% endblock %}

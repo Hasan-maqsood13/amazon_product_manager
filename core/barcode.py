@@ -58,9 +58,9 @@ def scan_barcode_robust(image_path):
         return None
 
 
+
 def process_sticker(sticker_id):
     from .models import stickers, sticker_data
-    import os
 
     try:
         sticker = stickers.objects.get(id=sticker_id)
@@ -69,28 +69,47 @@ def process_sticker(sticker_id):
 
         barcode = scan_barcode_robust(sticker.image_path.path)
 
-        if barcode and len(barcode.strip()) > 3:
-            # Save to sticker_data
+        if barcode and len(barcode.strip()) > 6:
+            barcode = barcode.strip()
+
+            # 🔥 LAST 6 DIGITS REMOVE HERE
+            cleaned_barcode = barcode[:-6]
+
             sticker_data.objects.create(
                 user=sticker.user,
                 image_path=sticker.image_path.name,
                 original_filename=sticker.original_filename,
                 file_size=sticker.file_size,
-                barcode=barcode.strip(),
-                status='processed',    
+                barcode=cleaned_barcode,   # 👈 cleaned barcode saved
+                status='processed',
                 matching_status='pending',
                 year=sticker.year,
                 month=sticker.month,
             )
+
             sticker.status = 'processed'
             sticker.save()
-            return {"file": sticker.original_filename, "barcode": barcode, "status": "success"}
+
+            return {
+                "file": sticker.original_filename,
+                "barcode": cleaned_barcode,
+                "status": "success"
+            }
+
         else:
             sticker.status = 'failed'
             sticker.save()
-            return {"file": sticker.original_filename, "status": "failed", "reason": "No barcode found"}
+            return {
+                "file": sticker.original_filename,
+                "status": "failed",
+                "reason": "No barcode found"
+            }
 
     except Exception as e:
         print(f"Error processing sticker {sticker_id}: {e}")
         stickers.objects.filter(id=sticker_id).update(status='failed')
-        return {"file": "Unknown", "status": "failed", "reason": str(e)}
+        return {
+            "file": "Unknown",
+            "status": "failed",
+            "reason": str(e)
+        }

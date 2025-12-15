@@ -130,3 +130,49 @@ class match_history(models.Model):
     SKU = models.CharField(max_length=100)
     def __str__(self):
         return f"Match #{self.id} - StickerData #{self.sticker_data.id} to ReceiptItem #{self.receipt_item.id} - SKU: {self.SKU}"
+    
+
+class ASINs(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='asins'
+    )
+    title = models.CharField(max_length=500)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    asin = models.CharField(max_length=20)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ('user', 'title', 'price', 'asin')
+
+    def __str__(self):
+        return f"{self.id} - {self.asin} - {self.title}"
+    
+
+class MatchedProducts(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='matched_products'
+    )
+    receipt_item = models.ForeignKey(
+        receipt_items,
+        on_delete=models.CASCADE,
+        related_name='asin_matches'
+    )
+    asin_record = models.ForeignKey(
+        ASINs,
+        on_delete=models.CASCADE,
+        related_name='receipt_matches'
+    )
+    matched_at = models.DateTimeField(default=timezone.now)
+    confidence = models.CharField(max_length=20, default='exact')  # exact/partial/fuzzy
+    
+    class Meta:
+        unique_together = ('receipt_item', 'asin_record')  # Duplicate matches avoid karein
+    
+    def __str__(self):
+        return f"Match #{self.id} - {self.receipt_item.product_name} → {self.asin_record.asin}"

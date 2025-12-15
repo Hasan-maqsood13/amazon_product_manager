@@ -1,3 +1,11 @@
+from io import StringIO
+from django.shortcuts import render
+import pandas as pd
+from django.db import IntegrityError
+from .models import ASINs
+from io import TextIOWrapper
+from django.http import JsonResponse
+import csv
 from core.barcode import process_sticker
 from .models import sticker_data, receipt_items, match_history  # Add these imports
 from core.ocr import process_receipt
@@ -558,6 +566,7 @@ def upload_stickers(request):
     return JsonResponse(response_data)
 
 
+
 def all_receipts(request):
     # (यह फ़ंक्शन आपके original code जैसा ही रहेगा)
     user_id = request.session.get('user_id')
@@ -991,17 +1000,20 @@ def all_matches(request):
         return HttpResponseForbidden("Access Denied")
     if not user.is_verified or not user.is_active:
         return HttpResponseForbidden("Access Denied")
-    matches_list = match_history.objects.filter(sticker_data__user=user).order_by('-matched_at')
+    matches_list = match_history.objects.filter(
+        sticker_data__user=user).order_by('-matched_at')
     return render(request, 'all_matches.html', {'matches': matches_list})
+
 
 @require_POST
 def delete_match(request, match_id):
     user_id = request.session.get('user_id')
     if not user_id:
         return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=401)
-   
+
     try:
-        match = match_history.objects.get(id=match_id, sticker_data__user_id=user_id)
+        match = match_history.objects.get(
+            id=match_id, sticker_data__user_id=user_id)
         match.delete()
         return JsonResponse({'status': 'success', 'message': f'Match #{match_id} deleted successfully.'})
     except match_history.DoesNotExist:
@@ -1009,35 +1021,40 @@ def delete_match(request, match_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
 @require_POST
 def delete_multiple_matches(request):
     user_id = request.session.get('user_id')
     if not user_id:
         return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=401)
-   
+
     try:
         data = json.loads(request.body)
         match_ids = data.get('ids', [])
-       
+
         if not match_ids:
             return JsonResponse({'status': 'error', 'message': 'No matches selected for deletion.'}, status=400)
-           
-        deleted_count, _ = match_history.objects.filter(id__in=match_ids, sticker_data__user_id=user_id).delete()
-       
+
+        deleted_count, _ = match_history.objects.filter(
+            id__in=match_ids, sticker_data__user_id=user_id).delete()
+
         return JsonResponse({'status': 'success', 'message': f'{deleted_count} matches deleted successfully.'})
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
 def match_details(request, match_id):
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
-       
-    match = get_object_or_404(match_history, id=match_id, sticker_data__user_id=user_id)
-   
+
+    match = get_object_or_404(
+        match_history, id=match_id, sticker_data__user_id=user_id)
+
     return render(request, 'match_details.html', {'match': match})
+
 
 def all_unmatched(request):
     user_id = request.session.get('user_id')
@@ -1049,5 +1066,118 @@ def all_unmatched(request):
         return HttpResponseForbidden("Access Denied")
     if not user.is_verified or not user.is_active:
         return HttpResponseForbidden("Access Denied")
-    unmatched_list = sticker_data.objects.filter(user=user, matching_status='unmatched').order_by('-created_at')
+    unmatched_list = sticker_data.objects.filter(
+        user=user, matching_status='unmatched').order_by('-created_at')
     return render(request, 'all_unmatched.html', {'unmatched': unmatched_list})
+
+
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from io import StringIO
+import csv
+import pandas as pd
+from django.utils import timezone
+from .models import ASINs
+
+def asin_upload_page(request):
+    # Render the upload page
+    return render(request, 'asins_upload.html')
+
+
+@csrf_exempt
+def upload_asins_file(request):
+    if request.method == "GET":
+        # Prevent GET requests here, optionally return empty or redirect
+        return JsonResponse({"success": False, "message": "Invalid method"}, status=405)
+
+    if request.method == "POST":
+        user, err = get_session_user(request)
+        if err:
+            return err
+
+        files = request.FILES.getlist("file")
+        if len(files) != 1:
+            return JsonResponse({"success": False, "message": "Only one file allowed at a time"}, status=400)
+
+        file = files[0]
+        inserted = 0
+        skipped = 0
+
+        try:
+            if file.name.lower().endswith('.csv'):
+                decoded_file = file.read().decode('utf-8')
+                io_string = StringIO(decoded_file)
+                reader = csv.DictReader(io_string)
+                for row in reader:
+                    title = row.get('title', '').strip()
+                    price = float(row.get('price', 0))
+                    asin = row.get('asin', '').strip()
+
+                    if not title or not asin:
+                        continue
+
+                    if ASINs.objects.filter(user=user, title=title, price=price, asin=asin).exists():
+                        skipped += 1
+                        continue
+
+                    ASINs.objects.create(
+                        user=user,
+                        title=title,
+                        price=price,
+                        asin=asin,
+                        created_at=timezone.now()
+                    )
+                    inserted += 1
+
+            elif file.name.lower().endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(file)
+                df = df.iloc[:, [0, 4, 16]]  # Map columns A/E/Q → title/price/asin
+                df.columns = ['title', 'price', 'asin']
+
+                for _, row in df.iterrows():
+                    title = str(row['title']).strip()
+                    price = float(row['price'])
+                    asin = str(row['asin']).strip()
+
+                    if not title or not asin:
+                        continue
+
+                    if ASINs.objects.filter(user=user, title=title, price=price, asin=asin).exists():
+                        skipped += 1
+                        continue
+
+                    ASINs.objects.create(
+                        user=user,
+                        title=title,
+                        price=price,
+                        asin=asin,
+                        created_at=timezone.now()
+                    )
+                    inserted += 1
+            else:
+                return JsonResponse({"success": False, "message": "Only CSV or Excel files are allowed"}, status=400)
+
+            return JsonResponse({
+                "success": True,
+                "inserted": inserted,
+                "skipped": skipped,
+                "message": f"{inserted} new ASINs added, {skipped} skipped (already exists)."
+            })
+
+        except Exception as e:
+            return JsonResponse({"success": False, "message": f"Error processing file: {str(e)}"}, status=500)
+
+
+
+def all_asins(request):
+    user, err = get_session_user(request)
+    if err:
+        return err
+
+    asins_list = ASINs.objects.filter(user=user).order_by('-created_at')
+
+    context = {
+        "asins": asins_list
+    }
+    return render(request, "all_asins.html", context)

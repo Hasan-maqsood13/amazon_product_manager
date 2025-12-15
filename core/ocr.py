@@ -308,6 +308,14 @@ def process_receipt(receipt_id):
       
         receipt.save()
         print(f"Receipt {receipt_id} processed: {items_created} items created")
+
+        try:
+            from core.matching import match_receipt_items_with_asins
+            matched = match_receipt_items_with_asins(receipt.user)
+            if matched > 0:
+                print(f"✅ {matched} products matched with ASINs database")
+        except Exception as e:
+            print(f"ASIN matching error: {e}")
  
     except Exception as e:
         print(f"Error processing receipt {receipt_id}: {e}")

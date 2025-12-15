@@ -54,4 +54,10 @@ urlpatterns = [
     path('matches/details/<int:match_id>/', views.match_details, name='match_details'),
     path('allunmatched/', views.all_unmatched, name='all_unmatched'),
 
+
+    
+    path("asins/upload/", views.asin_upload_page, name="asin_upload_page"),  # GET: show page
+    path("asins/upload-file/", views.upload_asins_file, name="upload_asins_csv"), 
+    path("asins/all/", views.all_asins, name="all_asins"),
+
 ]
