@@ -64,7 +64,7 @@
                                             <td class="filename">{{ receipt.original_filename }}</td>
                                             <td class="status">
                                                 <span class="badge bg-{% if receipt.status == 'processed' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if receipt.status == 'processed' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
-                                                    {{ receipt.status|title }}
+                                                    {{ receipt.get_status_display }}
                                                 </span>
                                             </td>
                                             <td class="date">{{ receipt.upload_date|date:"d M, Y" }}</td>

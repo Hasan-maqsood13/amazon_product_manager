@@ -10,3 +10,4 @@ admin.site.register(sticker_data)
 admin.site.register(match_history)
 admin.site.register(ASINs)
 admin.site.register(MatchedProducts)
+

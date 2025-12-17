@@ -1,0 +1,419 @@
+{% extends 'AB_base.html' %}
+{% load static %}
+{% block title %} Dashboard - Amazon Inventory Manager {% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<style>
+    /* Custom styles for a modern look */
+    .dashboard-card {
+        background-color: #ffffff;
+        border-radius: 15px; /* Softer corners */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+        color: #004d40;
+        border: none;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .widget {
+        border-left: 5px solid;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .widget:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .widget-icon {
+        font-size: 2.5rem;
+        color: #007bff;
+    }
+
+    .search-input-group {
+        border: none;
+        border-radius: 50px; /* Pill-shaped search bar */
+        overflow: hidden;
+    }
+
+    .search-input {
+        padding: 1rem 1.5rem;
+        border: none;
+        font-size: 1.1rem;
+    }
+
+    .search-btn {
+        background-color: #ff9900; /* Amazon's color */
+        color: white;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        border-radius: 0 50px 50px 0;
+        transition: background-color 0.3s;
+    }
+
+    .search-btn:hover {
+        background-color: #e68a00;
+        color: white;
+    }
+    
+    .results-card {
+        border-left: 4px solid #007bff;
+        border-radius: 10px;
+    }
+
+    /* Color coding for search results */
+    .badge-matched-asin { background-color: #28a745; color: white; } /* Success */
+    .badge-sticker-match { background-color: #007bff; color: white; } /* Primary */
+    .badge-receipt { background-color: #17a2b8; color: white; } /* Info */
+    .badge-asin { background-color: #ffc107; color: #343a40; } /* Warning */
+
+    /* Quick Actions Button Styling */
+    .btn-quick-action {
+        border-radius: 12px;
+        padding: 1.5rem 1rem;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        text-align: left;
+    }
+    .btn-quick-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    }
+    .btn-quick-action i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <div class="container py-5">
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="dashboard-card welcome-card p-5">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <h1 class="display-5 fw-bold mb-3">Welcome back, {{ user.username }}! 👋</h1>
+                            <p class="lead" style="color: #00665c;">
+                                Here's what's happening with your Amazon inventory today.
+                            </p>
+                            <p style="color: #00665c;">
+                                Search for any product, ASIN, or SKU to quickly find matches across receipts, stickers,
+                                and ASIN records.
+                            </p>
+                        </div>
+                        <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                            <div class="bg-light rounded-4 p-4 d-inline-block shadow-sm">
+                                <small class="text-muted d-block">Last login</small>
+                                <div class="h4 fw-bold text-primary mb-0">
+                                    {% if user.last_login %}
+                                    {{ user.last_login|date:"M d, Y" }}
+                                    {% else %}
+                                    First login
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="dashboard-card p-5">
+                    <h3 class="h4 fw-bold mb-3 text-center">🔎 Quick Inventory Search</h3>
+                    <p class="text-muted mb-4 text-center">Enter ASIN, SKU, product name, or title to search across all data.</p>
+
+                    <div class="search-container max-w-2xl mx-auto">
+                        <div class="input-group search-input-group shadow-lg">
+                            <input type="text" class="form-control search-input" id="searchInput"
+                                placeholder="Search ASIN, SKU, product name, title..." aria-label="Search Inventory">
+                            <button class="btn search-btn" id="searchBtn">
+                                <i class="fas fa-search me-2"></i> Search
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="searchResults" class="search-results mt-5" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <h5 class="mb-0 fw-bold">Search Results</h5>
+                            <button class="btn btn-sm btn-outline-danger" id="clearResults">
+                                <i class="fas fa-times me-1"></i> Clear
+                            </button>
+                        </div>
+                        <div id="resultsContent" class="results-content">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-6 col-xl-3">
+                <div class="dashboard-card widget h-100 p-4 border-primary">
+                    <div class="d-flex align-items-start">
+                        <div class="widget-icon me-4 text-primary">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="widget-title text-muted mb-1">Total Receipts</p>
+                            <h3 class="widget-count mb-0">{{ total_receipts }}</h3>
+                            <small class="text-primary"><i class="fas fa-arrow-up me-1"></i>All uploaded
+                                receipts</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="dashboard-card widget h-100 p-4 border-info">
+                    <div class="d-flex align-items-start">
+                        <div class="widget-icon me-4 text-info">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="widget-title text-muted mb-1">Total Stickers</p>
+                            <h3 class="widget-count mb-0">{{ total_stickers }}</h3>
+                            <small class="text-info"><i class="fas fa-boxes me-1"></i>All processed stickers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="dashboard-card widget h-100 p-4 border-warning">
+                    <div class="d-flex align-items-start">
+                        <div class="widget-icon me-4 text-warning">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="widget-title text-muted mb-1">Receipt-Sticker Matches</p>
+                            <h3 class="widget-count mb-0">{{ total_matches }}</h3>
+                            <small class="text-warning"><i class="fas fa-link me-1"></i>Receipts matched with
+                                stickers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="dashboard-card widget h-100 p-4 border-success">
+                    <div class="d-flex align-items-start">
+                        <div class="widget-icon me-4 text-success">
+                            <i class="fab fa-amazon"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="widget-title text-muted mb-1">ASIN Matches</p>
+                            <h3 class="widget-count mb-0">{{ total_matched_with_asins }}</h3>
+                            <small class="text-success"><i class="fas fa-check-circle me-1"></i>Matched with Amazon
+                                ASINs</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="dashboard-card p-5">
+                    <h5 class="h5 fw-bold mb-4">⚡ Quick Actions</h5>
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <a href="{% url 'dashboard' %}" class="btn btn-lg btn-outline-primary w-100 py-3 btn-quick-action">
+                                <i class="fas fa-upload me-2"></i> Upload Receipts
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'dashboard' %}" class="btn btn-lg btn-outline-success w-100 py-3 btn-quick-action">
+                                <i class="fas fa-image me-2"></i> Upload Stickers
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'all_receipts' %}" class="btn btn-lg btn-outline-info w-100 py-3 btn-quick-action">
+                                <i class="fas fa-list me-2"></i> View All Receipts
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'asin_upload_page' %}" class="btn btn-lg btn-outline-warning w-100 py-3 btn-quick-action">
+                                <i class="fab fa-amazon me-2"></i> Upload ASINs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    const searchInput = $('#searchInput');
+    const searchBtn = $('#searchBtn');
+    const searchResults = $('#searchResults');
+    const resultsContent = $('#resultsContent');
+    const clearBtn = $('#clearResults');
+
+    function performSearch(query) {
+        if (query.trim() === '') {
+            searchResults.hide();
+            resultsContent.empty();
+            return;
+        }
+
+        // Loading show karein
+        resultsContent.html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Searching for "${query}"...</p>
+            </div>
+        `);
+        searchResults.show();
+
+        $.ajax({
+            url: "{% url 'search_dashboard' %}",
+            type: "POST",
+            data: {
+                search: query,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log("Search response:", response);  // Debugging
+                if (response.success) {
+                    displayResults(response.results, response.total_found, query);
+                } else {
+                    resultsContent.html(`
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${response.error || 'No results found'}
+                        </div>
+                    `);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Search error:", error, xhr.responseText);  // Debugging
+                resultsContent.html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        Error occurred during search. Please try again.
+                    </div>
+                `);
+            }
+        });
+    }
+
+    function displayResults(results, total, query) {
+        if (results.length === 0) {
+            resultsContent.html(`
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-search-minus fa-3x mb-3"></i>
+                    <p class="h5">No results found for <strong>"${query}"</strong>.</p>
+                    <p class="small">Try searching with a different SKU, product name, or ASIN.</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = `<p class="text-muted mb-4">Found <strong>${total}</strong> result(s) for <strong>"${query}"</strong></p>`;
+        
+        results.forEach(item => {
+            let badgeClass = '';
+            let icon = '';
+
+            if (item.category === 'matched_asin') {
+                badgeClass = 'badge-matched-asin';
+                icon = 'fas fa-check-double';
+            }
+            else if (item.category === 'sticker_match') {
+                badgeClass = 'badge-sticker-match';
+                icon = 'fas fa-exchange-alt';
+            }
+            else if (item.category === 'receipt') {
+                badgeClass = 'badge-receipt';
+                icon = 'fas fa-receipt';
+            }
+            else if (item.category === 'asin') {
+                badgeClass = 'badge-asin';
+                icon = 'fab fa-amazon';
+            }
+            else {
+                badgeClass = 'bg-secondary';
+                icon = 'fas fa-box-open';
+            }
+
+            html += `
+                <div class="col-12 mb-3">
+                    <div class="dashboard-card results-card p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <span class="badge ${badgeClass} mb-2 px-3 py-2">
+                                    <i class="${icon} me-1"></i> ${item.type}
+                                </span>
+                                <h6 class="mb-2 fw-bold text-dark">${item.product_name || item.title || 'Product Title/Name N/A'}</h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1 small">
+                                            <strong>SKU:</strong> <span class="text-primary">${item.sku}</span>
+                                        </p>
+                                        ${item.asin ? `<p class="mb-1 small"><strong>ASIN:</strong> <span class="text-success">${item.asin}</span></p>` : ''}
+                                    </div>
+                                    <div class="col-md-6">
+                                        ${item.price ? `<p class="mb-1 small"><strong>Price:</strong> <span class="text-danger fw-bold">${item.price}</span></p>` : ''}
+                                        ${item.quantity ? `<p class="mb-1 small"><strong>Quantity:</strong> <span class="text-info">${item.quantity}</span></p>` : ''}
+                                        ${item.confidence ? `<p class="mb-1 small"><strong>Confidence:</strong> <span class="text-success">${item.confidence}</span></p>` : ''}
+                                    </div>
+                                </div>
+                                
+                                ${item.matched_at ? `<p class="mb-0 mt-2 text-muted small"><i class="far fa-clock me-1"></i> Matched: ${item.matched_at}</p>` : ''}
+                            </div>
+                            <a href="${item.url}" class="btn btn-primary flex-shrink-0 ms-3">
+                                <i class="fas fa-eye me-1"></i> View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsContent.html(`<div class="row">${html}</div>`);
+    }
+
+    // Search button click
+    searchBtn.click(function() {
+        performSearch(searchInput.val().trim());
+    });
+
+    // Enter key press
+    searchInput.on('keypress', function(e) {
+        if (e.which === 13) {
+            performSearch($(this).val().trim());
+        }
+    });
+
+    // Clear results
+    clearBtn.click(function() {
+        searchResults.slideUp();
+        searchInput.val('');
+        resultsContent.empty();
+    });
+
+    // Live search with debounce
+    let timeout;
+    searchInput.on('input', function() {
+        clearTimeout(timeout);
+        const query = $(this).val().trim();
+        if (query.length >= 2) { // At least 2 characters for live search
+            timeout = setTimeout(() => {
+                performSearch(query);
+            }, 800);
+        }
+    });
+});
+</script>
+{% endblock %}

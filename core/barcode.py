@@ -1,10 +1,10 @@
-# core/barcode.py  (naya file bana do)
+# core/barcode.py - Updated version
 from pyzbar.pyzbar import decode
 from PIL import Image
 import cv2
 import numpy as np
-from django.core.files.base import ContentFile
-from io import BytesIO
+from django.utils import timezone
+import os
 
 def scan_barcode_robust(image_path):
     """
@@ -57,59 +57,138 @@ def scan_barcode_robust(image_path):
         print(f"Barcode scan error: {e}")
         return None
 
-
-
 def process_sticker(sticker_id):
-    from .models import stickers, sticker_data
+    from core.models import stickers, sticker_data
 
     try:
         sticker = stickers.objects.get(id=sticker_id)
-        if sticker.status != 'pending':
-            return
+        print(f"Processing sticker {sticker_id}: {sticker.original_filename}")
+        
+        # Pehle check karein ke ye sticker pehle process to nahi ho chuka
+        existing_sticker_data = sticker_data.objects.filter(
+            user=sticker.user,
+            original_filename=sticker.original_filename,
+            file_size=sticker.file_size
+        ).first()
+        
+        if existing_sticker_data:
+            print(f"⚠️ Sticker {sticker_id} already processed before. Skipping...")
+            return {
+                "file": sticker.original_filename,
+                "status": "skipped",
+                "reason": "Already processed"
+            }
+
+        # Status update karein
+        sticker.status = 'processing'
+        sticker.save()
 
         barcode = scan_barcode_robust(sticker.image_path.path)
 
         if barcode and len(barcode.strip()) > 6:
             barcode = barcode.strip()
+            print(f"Raw barcode detected: {barcode}")
 
-            # 🔥 LAST 6 DIGITS REMOVE HERE
             cleaned_barcode = barcode[:-6]
+            print(f"Cleaned barcode: {cleaned_barcode}")
 
-            sticker_data.objects.create(
+            # Sirf EK BAR sticker_data create karein
+            sticker_data_obj = sticker_data.objects.create(
                 user=sticker.user,
                 image_path=sticker.image_path.name,
                 original_filename=sticker.original_filename,
                 file_size=sticker.file_size,
-                barcode=cleaned_barcode,   # 👈 cleaned barcode saved
+                barcode=cleaned_barcode,
                 status='processed',
-                matching_status='pending',
                 year=sticker.year,
                 month=sticker.month,
+                upload_date=timezone.now(),
+                created_at=timezone.now(),
+                matching_status='pending',
+                matched_status='unmatched'
             )
 
-            sticker.status = 'processed'
+            sticker.status = 'done'
             sticker.save()
+
+            print(f"✅ Sticker {sticker_id} processed successfully. Barcode: {cleaned_barcode}")
+            
+            # Automatic matching run karein
+            try:
+                from core.matching import match_sticker_with_receipt
+                matches = match_sticker_with_receipt(sticker.user)
+                print(f"✅ {matches} sticker-receipt matches created")
+            except Exception as e:
+                print(f"⚠️ Sticker matching error: {e}")
 
             return {
                 "file": sticker.original_filename,
                 "barcode": cleaned_barcode,
-                "status": "success"
+                "status": "success",
+                "sticker_data_id": sticker_data_obj.id
             }
 
         else:
+            # Barcode nahi mila, sirf EK BAR sticker_data create karein
+            sticker_data_obj = sticker_data.objects.create(
+                user=sticker.user,
+                image_path=sticker.image_path.name,
+                original_filename=sticker.original_filename,
+                file_size=sticker.file_size,
+                barcode=None,
+                status='failed',
+                year=sticker.year,
+                month=sticker.month,
+                upload_date=timezone.now(),
+                created_at=timezone.now(),
+                matching_status='unmatched',
+                matched_status='unmatched'
+            )
+
             sticker.status = 'failed'
             sticker.save()
+
+            print(f"⚠️ Sticker {sticker_id} processed but no barcode found")
+            
             return {
                 "file": sticker.original_filename,
                 "status": "failed",
-                "reason": "No barcode found"
+                "reason": "No barcode found",
+                "sticker_data_id": sticker_data_obj.id
             }
 
     except Exception as e:
-        print(f"Error processing sticker {sticker_id}: {e}")
-        stickers.objects.filter(id=sticker_id).update(status='failed')
+        print(f"❌ Error processing sticker {sticker_id}: {e}")
+        
+        # Exception case mein bhi sirf EK BAR save karein
+        try:
+            # Check karein ke sticker object hai ya nahi
+            if 'sticker' in locals():
+                sticker_data_obj = sticker_data.objects.create(
+                    user=sticker.user,
+                    image_path=sticker.image_path.name,
+                    original_filename=sticker.original_filename,
+                    file_size=sticker.file_size,
+                    barcode=None,
+                    status='failed',
+                    year=sticker.year,
+                    month=sticker.month,
+                    upload_date=timezone.now(),
+                    created_at=timezone.now(),
+                    matching_status='unmatched',
+                    matched_status='unmatched'
+                )
+                
+                sticker.status = 'failed'
+                sticker.save()
+            else:
+                print(f"❌ Sticker object not found in exception")
+                
+        except Exception as inner_e:
+            print(f"❌ Error creating sticker_data in exception: {inner_e}")
+        
         return {
-            "file": "Unknown",
+            "file": sticker.original_filename if 'sticker' in locals() else "Unknown",
             "status": "failed",
             "reason": str(e)
         }

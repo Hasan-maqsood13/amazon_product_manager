@@ -58,6 +58,30 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 import json
+from django.shortcuts import render, redirect, HttpResponse, get_object_or_404
+from django.http import JsonResponse, HttpResponseForbidden
+from django.contrib.auth.hashers import make_password, check_password
+from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.contrib import messages
+from django.utils import timezone
+from django.db import IntegrityError
+from django.db.models import Q
+from io import StringIO
+import pandas as pd
+import csv
+import json
+import re
+import random
+import threading
+from django.db import transaction
+from .models import *
+from .utils import *
+from core.barcode import process_sticker
+from core.ocr import process_receipt
+from core.validators import validate_multiple_images, validate_multiple_stickers
+from core.preprocessing import preprocess_image_pro
 
 
 def generate_verification_code(length=4):
@@ -65,12 +89,6 @@ def generate_verification_code(length=4):
     return str(random.randint(1000, 9999))
 
 # Create your views here.
-
-
-def home(request):
-    return HttpResponse("Welcome to the Home Page")
-
-
 # Authentication Views
 def register(request):
     if request.method == 'POST':
@@ -443,92 +461,80 @@ def perform_matching(user):
 # Upload Receipts and Stickers Views
 
 
-@csrf_exempt
-def upload_receipts(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid method"}, status=405)
-    user, err = get_session_user(request)
-    if err:
-        return err
-    files = request.FILES.getlist("files")
-    if not files:
-        return JsonResponse({"success": False, "message": "No files selected"})
-    # Step 1: Validate and filter by quality
-    valid_files, rejected_files = validate_multiple_images(files)
-    # Always include lists in response
-    response_data = {
-        "accepted_files": [f.name for f in valid_files],
-        "rejected_files": [{"file": r['file'], "reason": r['errors'][0]} for r in rejected_files],
-        "accepted": len(valid_files),
-        "rejected": len(rejected_files)
-    }
-    if not valid_files:
-        response_data["success"] = False
-        response_data["message"] = "All files rejected due to poor quality"
-        return JsonResponse(response_data)
-    response_data["success"] = True
-    # Step 2: Process valid files
-    saved_ids = []
-    for file in valid_files:
-        try:
-            # Conditional preprocessing: Only for images, skip for PDF
-            ext = file.name.split('.')[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png']:
-                processed_file = preprocess_image_pro(file)
-            else:
-                processed_file = file  # For PDF, save as is
+# Update the process_receipt function in core/ocr.py ya phir views.py mein hi
+def update_receipt_status_after_processing(receipt_id, has_items=True):
+    """
+    Receipt processing ke baad status update karein
+    """
+    try:
+        receipt = receipts.objects.get(id=receipt_id)
+        if has_items:
+            receipt.status = 'done'
+        else:
+            receipt.status = 'failed'
+        receipt.save()
+    except receipts.DoesNotExist:
+        pass
 
-            receipt = receipts(
-                user=user,
-                original_filename=file.name,
-                file_size=file.size,
-                year=timezone.now().year,
-                month=timezone.now().month,
-                status='pending'  # Changed to 'pending'
-            )
-            receipt.image_path.save(file.name, processed_file, save=True)
-            saved_ids.append(receipt.id)
-        except Exception as e:
-            print(f"Error processing {file.name}: {e}")
-            continue
-    # Step 3: OCR + AI Processing (synchronous for now)
-    for sid in saved_ids:
-        try:
-            process_receipt(sid)
-            response_data['message'] = 'Processing complete!'  # Optional
-        except Exception as e:
-            print(f"Error in OCR/AI for receipt {sid}: {e}")
-            receipts.objects.filter(id=sid).update(status='failed')
-    return JsonResponse(response_data)
-
-
+# Update upload_receipts function
+# views.py - upload_stickers function update karein
 @csrf_exempt
 def upload_stickers(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid method"}, status=405)
+    
     user, err = get_session_user(request)
     if err:
         return err
+    
     files = request.FILES.getlist("files")
     if not files:
         return JsonResponse({"success": False, "message": "No files selected"})
-    # Simple extension validation
+    
     valid_files, rejected_files = validate_multiple_stickers(files)
     response_data = {
         "success": True,
         "accepted": len(valid_files),
         "rejected": len(rejected_files),
-        "results": [],  # ← Ye naya hai
+        "results": [],
         "failed_count": 0,
         "success_count": 0
     }
+    
     if rejected_files:
         response_data["rejection_details"] = [
             {"file": r['file'], "reason": r['errors'][0]} for r in rejected_files
         ]
-    # Save + Process each file
+    
+    processed_files = []  # Track processed files to avoid duplicates
+    
     for file in valid_files:
+        # Check if file already processed in this batch
+        if file.name in processed_files:
+            response_data["results"].append({
+                "file": file.name,
+                "status": "skipped",
+                "reason": "Duplicate in batch"
+            })
+            continue
+        
         try:
+            # Pehle check karein database mein same file to nahi hai
+            existing_sticker = stickers.objects.filter(
+                user=user,
+                original_filename=file.name,
+                file_size=file.size
+            ).first()
+            
+            if existing_sticker:
+                response_data["results"].append({
+                    "file": file.name,
+                    "status": "skipped",
+                    "reason": "Already uploaded before"
+                })
+                continue
+            
+            # New sticker create karein
             sticker = stickers(
                 user=user,
                 original_filename=file.name,
@@ -538,33 +544,126 @@ def upload_stickers(request):
                 status='pending'
             )
             sticker.image_path.save(file.name, file, save=True)
+            
             # Process immediately
             result = process_sticker(sticker.id)
+            
+            # Track processed file
+            processed_files.append(file.name)
+            
             if result["status"] == "success":
                 response_data["success_count"] += 1
                 response_data["results"].append({
                     "file": result["file"],
-                    "barcode": result["barcode"],
+                    "barcode": result.get("barcode"),
                     "status": "success"
+                })
+            elif result["status"] == "skipped":
+                response_data["results"].append({
+                    "file": result["file"],
+                    "status": "skipped",
+                    "reason": result.get("reason", "Already processed")
                 })
             else:
                 response_data["failed_count"] += 1
                 response_data["results"].append({
-                    "file": result["file"],
+                    "file": result.get("file", file.name),
                     "status": "failed",
                     "reason": result.get("reason", "Barcode not detected")
                 })
-            # NEW: Immediately after processing/saving, trigger matching for all pending (including this one)
-            perform_matching(user)
+            
         except Exception as e:
+            print(f"Error processing sticker {file.name}: {e}")
             response_data["failed_count"] += 1
             response_data["results"].append({
                 "file": file.name,
                 "status": "failed",
                 "reason": "Processing error"
             })
+    
     return JsonResponse(response_data)
 
+# Upload receipts function mein bhi
+@csrf_exempt
+def upload_receipts(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+    
+    user, err = get_session_user(request)
+    if err:
+        return err
+    
+    files = request.FILES.getlist("files")
+    if not files:
+        return JsonResponse({"success": False, "message": "No files selected"})
+    
+    valid_files, rejected_files = validate_multiple_images(files)
+    
+    response_data = {
+        "accepted_files": [f.name for f in valid_files],
+        "rejected_files": [{"file": r['file'], "reason": r['errors'][0]} for r in rejected_files],
+        "accepted": len(valid_files),
+        "rejected": len(rejected_files)
+    }
+    
+    if not valid_files:
+        response_data["success"] = False
+        response_data["message"] = "All files rejected due to poor quality"
+        return JsonResponse(response_data)
+    
+    response_data["success"] = True
+    saved_ids = []
+    
+    for file in valid_files:
+        try:
+            ext = file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png']:
+                processed_file = preprocess_image_pro(file)
+            else:
+                processed_file = file
+
+            receipt = receipts(
+                user=user,
+                original_filename=file.name,
+                file_size=file.size,
+                year=timezone.now().year,
+                month=timezone.now().month,
+                status='pending'
+            )
+            receipt.image_path.save(file.name, processed_file, save=True)
+            saved_ids.append(receipt.id)
+        except Exception as e:
+            print(f"Error processing {file.name}: {e}")
+            continue
+    
+    # Process each receipt
+    total_items = 0
+    for sid in saved_ids:
+        try:
+            process_receipt(sid)
+            
+            # Count items created
+            item_count = receipt_items.objects.filter(receipt_id=sid).count()
+            total_items += item_count
+            
+            # Update receipt status
+            receipt_obj = receipts.objects.get(id=sid)
+            if item_count > 0:
+                receipt_obj.status = 'done'
+                print(f"✅ Receipt {sid} processed: {item_count} items created")
+            else:
+                receipt_obj.status = 'failed'
+                print(f"⚠️ Receipt {sid} failed: No items extracted")
+            receipt_obj.save()
+                
+        except Exception as e:
+            print(f"Error in OCR/AI for receipt {sid}: {e}")
+            receipts.objects.filter(id=sid).update(status='failed')
+    
+    response_data["items_created"] = total_items
+    response_data["message"] = f"{total_items} items created and automatically matched with ASINs"
+    
+    return JsonResponse(response_data)
 
 
 def all_receipts(request):
@@ -1181,3 +1280,265 @@ def all_asins(request):
         "asins": asins_list
     }
     return render(request, "all_asins.html", context)
+
+
+def searchablepanel(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return HttpResponseForbidden("Access Denied: User not found")
+
+    if not user.is_verified or not user.is_active:
+        return HttpResponseForbidden("Access Denied: Account not verified or active")
+
+    total_receipts = receipts.objects.filter(user=user).count()
+    total_stickers = stickers.objects.filter(user=user).count()
+    total_matches = match_history.objects.filter(
+        sticker_data__user=user).count()
+    total_matched_with_asins = MatchedProducts.objects.filter(
+        user=user).count()
+
+    context = {
+        'user': user,
+        'total_receipts': total_receipts,
+        'total_stickers': total_stickers,
+        'total_matches': total_matches,
+        'total_matched_with_asins': total_matched_with_asins,
+    }
+
+    return render(request, 'searchablepanel.html', context)
+
+
+@csrf_exempt
+def search_dashboard(request):
+    if request.method == "POST":
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'User not found'}, status=404)
+
+        search_query = request.POST.get('search', '').strip()
+
+        if not search_query:
+            return JsonResponse({'success': False, 'error': 'Please enter a search term'})
+
+        results = []
+        
+        # 1. Search in MatchedProducts
+        matched_prods = MatchedProducts.objects.filter(
+            user=user
+        ).filter(
+            Q(receipt_item__sku__icontains=search_query) |
+            Q(receipt_item__product_name__icontains=search_query) |
+            Q(asin_record__asin__icontains=search_query) |
+            Q(asin_record__title__icontains=search_query)
+        ).select_related('receipt_item', 'asin_record')[:20]
+
+        for item in matched_prods:
+            results.append({
+                'id': item.id,
+                'type': 'Receipt → ASIN Match',
+                'category': 'matched_asin',
+                'sku': item.receipt_item.sku if item.receipt_item.sku else 'N/A',
+                'product_name': item.receipt_item.product_name if item.receipt_item.product_name else 'N/A',
+                'asin': item.asin_record.asin,
+                'title': item.asin_record.title[:80] + '...' if len(item.asin_record.title) > 80 else item.asin_record.title,
+                'confidence': item.confidence,
+                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p'),
+                'url': '#'
+            })
+
+        # 2. Search in match_history
+        sticker_matches = match_history.objects.filter(
+            sticker_data__user=user
+        ).filter(
+            Q(SKU__icontains=search_query) |
+            Q(receipt_item__product_name__icontains=search_query)
+        ).select_related('sticker_data', 'receipt_item')[:20]
+
+        for item in sticker_matches:
+            results.append({
+                'id': item.id,
+                'type': 'Sticker → Receipt Match',
+                'category': 'sticker_match',
+                'sku': item.SKU,
+                'product_name': item.receipt_item.product_name if item.receipt_item.product_name else 'N/A',
+                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p'),
+                'url': 'match_details'
+            })
+
+        # 3. Search in receipt_items
+        if not results:
+            receipt_items_search = receipt_items.objects.filter(
+                receipt__user=user
+            ).filter(
+                Q(sku__icontains=search_query) |
+                Q(product_name__icontains=search_query)
+            ).select_related('receipt')[:10]
+
+            for item in receipt_items_search:
+                results.append({
+                    'id': item.id,
+                    'type': 'Receipt Item',
+                    'category': 'receipt',
+                    'sku': item.sku if item.sku else 'N/A',
+                    'product_name': item.product_name if item.product_name else 'N/A',
+                    'quantity': str(item.quantity) if item.quantity else 'N/A',
+                    'price': f"${item.unit_price:.2f}" if item.unit_price else 'N/A',
+                    'url': 'item_details',
+                    'created_at': item.receipt.upload_date.strftime('%b %d, %Y'),
+                })
+
+        # 4. Search in ASINs
+        if not results:
+            asins_search = ASINs.objects.filter(user=user).filter(
+                Q(asin__icontains=search_query) |
+                Q(title__icontains=search_query)
+            )[:10]
+
+            for item in asins_search:
+                results.append({
+                    'id': item.id,
+                    'type': 'ASIN Record',
+                    'category': 'asin',
+                    'asin': item.asin,
+                    'title': item.title[:80] + '...' if len(item.title) > 80 else item.title,
+                    'price': f"${item.price:.2f}" if item.price else 'N/A',
+                    'url': '#',
+                    'created_at': item.created_at.strftime('%b %d, %Y')
+                })
+
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'total_found': len(results),
+            'search_query': search_query
+        })
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
+
+
+# Other CRUD views (delete, edit, details) remain the same as in your original code
+# They are not modified in this update
+
+# views.py - all_matched_products function mein debug add karein
+def all_matched_products(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return HttpResponseForbidden("Access Denied")
+    
+    if not user.is_verified or not user.is_active:
+        return HttpResponseForbidden("Access Denied")
+    
+    # Debug print
+    print(f"🔍 User ID: {user_id}")
+    print(f"👤 User: {user.username}")
+    
+    # MatchedProducts ko fetch karein
+    matched_products = MatchedProducts.objects.filter(
+        user=user
+    ).select_related('receipt_item', 'asin_record').order_by('-matched_at')
+    
+    # Debug: Count print karein
+    print(f"📊 Total matched products found: {matched_products.count()}")
+    
+    # Agar data hai to details print karein
+    for mp in matched_products[:5]:  # Sirf first 5
+        print(f"📦 Match: {mp.receipt_item.product_name} → {mp.asin_record.asin}")
+    
+    # Statistics calculate karein
+    stats = {
+        'total_matches': matched_products.count(),
+        'unique_asins': matched_products.values('asin_record').distinct().count(),
+        'unique_products': matched_products.values('receipt_item').distinct().count(),
+    }
+    
+    # Debug stats print karein
+    print(f"📈 Stats: {stats}")
+    
+    return render(request, 'matched_products.html', {
+        'matched_products': matched_products,
+        'stats': stats,
+        'user': user
+    })
+
+
+@csrf_exempt
+def run_matching(request):
+    """Manual matching run karne ke liye"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST allowed'})
+    
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return JsonResponse({'success': False, 'error': 'Authentication required'})
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'User not found'})
+    
+    try:
+        # 1. ASIN matching (receipt items ke saath)
+        matched_products_count = 0
+        
+        # Get all receipt items
+        receipt_items_list = receipt_items.objects.filter(
+            receipt__user=user,
+            status='processed'
+        )
+        
+        for item in receipt_items_list:
+            if item.product_name and item.product_name != 'Unknown':
+                product_name_lower = item.product_name.strip().lower()
+                
+                # Find matching ASINs
+                matching_asins = ASINs.objects.filter(
+                    user=user,
+                    title__iexact=product_name_lower
+                )
+                
+                for asin in matching_asins:
+                    # Save to MatchedProducts
+                    obj, created = MatchedProducts.objects.get_or_create(
+                        user=user,
+                        receipt_item=item,
+                        asin_record=asin,
+                        defaults={'matched_at': timezone.now()}
+                    )
+                    
+                    if created:
+                        matched_products_count += 1
+                        # Update ASIN count
+                        asin.match_count += 1
+                        asin.save()
+        
+        # 2. Sticker matching
+        from core.matching import match_sticker_with_receipt
+        sticker_matches = match_sticker_with_receipt(user)
+        
+        return JsonResponse({
+            'success': True,
+            'asin_matches': matched_products_count,
+            'sticker_matches': sticker_matches,
+            'message': f'{matched_products_count} ASIN matches, {sticker_matches} sticker matches created'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

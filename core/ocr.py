@@ -197,6 +197,7 @@ Begin extraction now.
     except Exception as e:
         print(f"OpenAI API error: {e}")
         return ""
+    
 def process_receipt(receipt_id):
     """Process receipt with new OCR system"""
     receipt = receipts.objects.get(id=receipt_id)
@@ -204,15 +205,11 @@ def process_receipt(receipt_id):
     receipt.save()
  
     try:
-        # YAHAN IMPORTANT CHANGE HAI:
-        # Pehle: raw_text, avg_conf = extract_text_with_ocr(receipt.image_path.path)
-        # Ab: raw_text, avg_conf = extract_text_with_ocr(receipt)
         raw_text, avg_conf = extract_text_with_ocr(receipt)
       
         receipt.raw_ocr_text = raw_text
         receipt.save()
      
-        # Agar text nahi mila to fail karein
         if not raw_text or len(raw_text.strip()) < 10:
             receipt.status = 'failed'
             receipt.raw_ocr_text = "ERROR: No text extracted from file"
@@ -221,7 +218,6 @@ def process_receipt(receipt_id):
       
         parsed = parse_with_ai(raw_text)
       
-        # Agar AI parsing fail ho jaye
         if not parsed:
             receipt.status = 'failed'
             receipt.raw_ocr_text += "\nERROR: AI parsing failed"
@@ -251,18 +247,16 @@ def process_receipt(receipt_id):
                 code_line = lines[i+4] if i+4 < len(lines) and lines[i+4].startswith('Code:') else 'Code: Not found'
                 code = code_line.replace('Code:', '').strip()
              
-                # Duplicate check
                 if code != 'Not found' and code in seen_skus:
                     code = 'Duplicate - ' + code
              
                 seen_skus.add(code)
              
-                # Convert values
                 qty_val = Decimal(qty_str) if qty_str.replace('.', '', 1).isdigit() else None
                 unit_val = Decimal(unit_str) if unit_str != 'Not found' and unit_str.replace('.', '', 1).isdigit() else None
                 total_val = Decimal(total_str) if total_str != 'Not found' and total_str.replace('.', '', 1).isdigit() else None
              
-                # Create item
+                # ✅ DIRECT receipt item create karein
                 item = receipt_items(
                     receipt=receipt,
                     line_number=line_num,
@@ -275,22 +269,8 @@ def process_receipt(receipt_id):
                     confidence_score=Decimal(avg_conf),
                     created_at=timezone.now()
                 )
-                item.save()
-              
-                # Status set karein
-                missing = False
-                if not item.product_name or item.product_name.strip() == '' or item.product_name == 'Unknown':
-                    missing = True
-                if not item.sku or item.sku.strip() == '':
-                    missing = True
-                if item.quantity is None:
-                    missing = True
-                if item.unit_price is None:
-                    missing = True
-                if item.total_price is None:
-                    missing = True
-              
-                item.status = 'flagged for review' if missing else 'done'
+                
+                # Save karein - ye automatically match_with_asins() call karega
                 item.save()
               
                 line_num += 1
@@ -299,23 +279,15 @@ def process_receipt(receipt_id):
             else:
                 i += 1
       
-        # Agar koi item create hua hai to status 'done' karein
         if items_created > 0:
             receipt.status = 'done'
+            print(f"✅ {items_created} items created and automatically matched with ASINs")
         else:
             receipt.status = 'failed'
             receipt.raw_ocr_text += "\nERROR: No items extracted"
       
         receipt.save()
         print(f"Receipt {receipt_id} processed: {items_created} items created")
-
-        try:
-            from core.matching import match_receipt_items_with_asins
-            matched = match_receipt_items_with_asins(receipt.user)
-            if matched > 0:
-                print(f"✅ {matched} products matched with ASINs database")
-        except Exception as e:
-            print(f"ASIN matching error: {e}")
  
     except Exception as e:
         print(f"Error processing receipt {receipt_id}: {e}")

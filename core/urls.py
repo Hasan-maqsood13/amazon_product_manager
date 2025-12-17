@@ -2,7 +2,6 @@ from django.urls import path, include
 from core import views
 
 urlpatterns = [
-    path('', views.home, name='home'),
 
     # authentication paths
     path('register/', views.register, name="register"),
@@ -15,8 +14,12 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
 
     # dashboard paths
-    path('dashboard/', views.admindashboard, name='dashboard'),
+    path('Upload-section/', views.admindashboard, name='dashboard'),
     path('hemloo/', views.dashboard_dd, name='dashboard_dd'),
+
+    path('', views.searchablepanel, name='searchablepanel'),
+    path('dashboard/search/', views.search_dashboard, name='dashboard_search'),
+    path('search/inventory/', views.search_dashboard, name='search_dashboard'),
 
 
     # upload Receipts and Stickers imgs
@@ -59,5 +62,9 @@ urlpatterns = [
     path("asins/upload/", views.asin_upload_page, name="asin_upload_page"),  # GET: show page
     path("asins/upload-file/", views.upload_asins_file, name="upload_asins_csv"), 
     path("asins/all/", views.all_asins, name="all_asins"),
+
+
+    path('matched-products/', views.all_matched_products, name='all_matched_products'),
+    path('run-matching/', views.run_matching, name='run_matching'),
 
 ]

@@ -23,6 +23,7 @@
                                 <th>Title</th>
                                 <th>Price</th>
                                 <th>ASIN</th>
+                                <th>Matches</th>
                                 <th>Created At</th>
                             </tr>
                         </thead>
@@ -33,6 +34,12 @@
                                 <td>{{ asin.title }}</td>
                                 <td>{{ asin.price }}</td>
                                 <td>{{ asin.asin }}</td>
+                                <td>
+                                    <span
+                                        class="badge bg-{% if asin.match_count > 0 %}success{% else %}secondary{% endif %}">
+                                        {{ asin.match_count }} match{{ asin.match_count|pluralize:"es" }}
+                                    </span>
+                                </td>
                                 <td>{{ asin.created_at|date:"Y-m-d H:i" }}</td>
                             </tr>
                             {% empty %}

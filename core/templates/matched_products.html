@@ -1,0 +1,218 @@
+<!-- matched_products.html -->
+{% extends 'AB_base.html' %}
+{% load static %}
+{% block title %} Matched-Products {% endblock %}
+{% block content %}
+<div class="page-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">ASIN to Product Matches</h5>
+                                    <div>
+                                        <span class="badge bg-primary me-2">
+                                            {{ matched_products.count }} Matches
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {% if matched_products.count > 0 %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Receipt Product</th>
+                                                <th>ASIN</th>
+                                                <th>ASIN Title</th>
+                                                <th>Matched At</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for match in matched_products %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>
+                                                    <strong>{{ match.receipt_item.product_name }}</strong><br>
+                                                    <small class="text-muted">
+                                                        SKU: {{ match.receipt_item.sku|default:"N/A" }}<br>
+                                                        Qty: {{ match.receipt_item.quantity|default:"1" }} × ${{
+                                                        match.receipt_item.unit_price|default:"0.00" }}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <code
+                                                        class="bg-light p-1 rounded">{{ match.asin_record.asin }}</code>
+                                                </td>
+                                                <td>
+                                                    <span title="{{ match.asin_record.title }}">
+                                                        {{ match.asin_record.title|truncatechars:50 }}
+                                                    </span>
+                                                </td>
+
+                                                <td>{{ match.matched_at|date:"M d, Y H:i" }}</td>
+                                                <td>
+                                                    <a href="{% url 'item_details' match.receipt_item.id %}"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="View Receipt Item">
+                                                        <i class="ri-eye-line"></i>
+                                                    </a>
+                                                    <a href="#" class="btn btn-sm btn-outline-info ms-1"
+                                                        title="View ASIN Details"
+                                                        onclick="viewAsin('{{ match.asin_record.asin }}')">
+                                                        <i class="ri-barcode-line"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Pagination (agar records zyada ho) -->
+                                {% if matched_products.count > 50 %}
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#" tabindex="-1">Previous</a>
+                                        </li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="#">Next</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                                {% endif %}
+
+                                {% else %}
+                                <div class="text-center py-5">
+                                    <i class="ri-inbox-line fs-48 text-muted mb-3"></i>
+                                    <h4 class="text-muted">No Matched Products Found</h4>
+                                    <p class="text-muted mb-4">There are no matches between your receipt items and ASINs
+                                        yet.</p>
+
+                                    <div class="row justify-content-center">
+                                        <div class="col-md-4">
+                                            <div class="card mb-3">
+                                                <div class="card-body text-center">
+                                                    <i class="ri-file-upload-line fs-32 text-primary mb-2"></i>
+                                                    <h6>Upload Receipts</h6>
+                                                    <p class="small text-muted">Upload purchase receipts to extract
+                                                        product information</p>
+                                                    <a href="{% url 'upload_receipts' %}"
+                                                        class="btn btn-sm btn-primary">
+                                                        Upload Receipts
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card mb-3">
+                                                <div class="card-body text-center">
+                                                    <i class="ri-barcode-box-line fs-32 text-success mb-2"></i>
+                                                    <h6>Upload ASINs</h6>
+                                                    <p class="small text-muted">Upload your ASIN list to match with
+                                                        receipt items</p>
+                                                    <a href="{% url 'asin_upload_page' %}"
+                                                        class="btn btn-sm btn-success">
+                                                        Upload ASINs
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card mb-3">
+                                                <div class="card-body text-center">
+                                                    <i class="ri-refresh-line fs-32 text-warning mb-2"></i>
+                                                    <h6>Run Matching</h6>
+                                                    <p class="small text-muted">Run the matching algorithm to find
+                                                        matches</p>
+                                                    <button class="btn btn-sm btn-warning" onclick="runMatching()">
+                                                        Run Matching
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewAsin(asin) {
+        alert('ASIN: ' + asin + '\n\nYou can view ASIN details in the ASINs section.');
+    }
+
+    function runMatching() {
+        Swal.fire({
+            title: 'Running Matching',
+            html: 'Matching ASINs with Receipt Items...<br><small>This may take a few moments</small>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+
+                fetch('/run-matching/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            let html = `<div class="text-start">
+                        <h6>Matching Results:</h6>
+                        <ul>
+                            <li>ASIN Matches Created: ${data.asin_matches.products_created || 0}</li>
+                            <li>Total Matches Found: ${data.asin_matches.matches_found || 0}</li>
+                        </ul>
+                        <div class="alert alert-success">
+                            <i class="ri-check-line"></i> Matching completed successfully!
+                        </div>
+                    </div>`;
+
+                            Swal.fire({
+                                title: 'Matching Complete!',
+                                html: html,
+                                icon: 'success',
+                                confirmButtonText: 'Refresh Page'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    window.location.reload();
+                                }
+                            });
+                        } else {
+                            Swal.fire('Error', data.error || 'Matching failed', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', 'Something went wrong: ' + error.message, 'error');
+                    });
+            }
+        });
+    }
+
+    // Auto-refresh if no data (every 10 seconds)
+    {% if matched_products.count == 0 %}
+    setTimeout(() => {
+        console.log('Auto-refreshing page to check for new matches...');
+        window.location.reload();
+    }, 10000);
+    {% endif %}
+</script>
+{% endblock %}

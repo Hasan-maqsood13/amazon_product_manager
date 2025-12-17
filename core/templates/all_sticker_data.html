@@ -70,7 +70,7 @@
                                             </td>
                                             <td class="matching_status">
                                                 <span class="badge bg-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %}-subtle text-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %} text-uppercase">
-                                                    {{ data.matching_status|title }}
+                                                    {{ data.matched_status|title }}
                                                 </span>
                                             </td>
                                             <td class="date">{{ data.upload_date|date:"d M, Y" }}</td>

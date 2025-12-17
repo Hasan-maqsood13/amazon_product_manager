@@ -1,6 +1,6 @@
 {% extends 'AB_base.html' %}
 {% load static %}
-{% block title %} Dashboard - Amazon Inventory Manager {% endblock %}
+{% block title %} Upload-Section - Amazon Inventory Manager {% endblock %}
 {% block content %}
 <div class="page-content">
     <div class="container-fluid">
@@ -24,6 +24,7 @@
                 </div>
             </div>
         </div>
+        
         <div class="row g-4">
             <div class="col-xl-6">
                 <div class="card card-animate border-0 shadow-lg h-100" style="transition: all 0.3s ease;">
@@ -31,7 +32,8 @@
                         <div class="d-flex align-items-center">
                             <i class="ri-file-list-3-line fs-24 me-2"></i>
                             <h4 class="mb-0 fw-bold text-white">Receipt & Invoice Upload</h4>
-                            <span class="badge bg-light text-primary ms-auto fs-12 py-1 px-2">JPG | PNG | PDF Only</span>
+                            <span class="badge bg-light text-primary ms-auto fs-12 py-1 px-2">JPG | PNG | PDF
+                                Only</span>
                         </div>
                     </div>
                     <div class="card-body text-center p-5">
@@ -170,6 +172,7 @@
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
     }
+
     /* Custom Dropzone Styling */
     .dropzone {
         border: none !important;
@@ -177,6 +180,7 @@
         padding: 0 !important;
         background: transparent !important;
     }
+
     .upload-zone-primary {
         border: 2px dashed #4b9eff !important;
         /* Primary color dashed border */
@@ -184,6 +188,7 @@
         /* Light blue background */
         transition: all 0.3s ease;
     }
+
     .upload-zone-success {
         border: 2px dashed #28a745 !important;
         /* Success color dashed border */
@@ -191,15 +196,19 @@
         /* Light green background */
         transition: all 0.3s ease;
     }
+
     /* Hover effect on dropzone for visual feedback */
     .upload-zone-primary:hover {
         background-color: #e8f0fe !important;
     }
+
     .upload-zone-success:hover {
         background-color: #e8fdf5 !important;
     }
+
     /* Icon Animation (using a simple keyframe) */
     @keyframes bounce {
+
         0%,
         20%,
         50%,
@@ -207,35 +216,44 @@
         100% {
             transform: translateY(0);
         }
+
         40% {
             transform: translateY(-10px);
         }
+
         60% {
             transform: translateY(-5px);
         }
     }
+
     .bounce.animated {
         animation: bounce 2s infinite;
     }
+
     /* Button Hover State */
     .btn-hover:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
+
     /* Processing Alert Enhancements */
     .bg-gradient-info {
         background: linear-gradient(135deg, #17a2b8, #20c997) !important;
     }
+
     .animate-pulse {
         animation: pulse 1.5s infinite;
     }
+
     @keyframes pulse {
         0% {
             opacity: 0.75;
         }
+
         50% {
             opacity: 1;
         }
+
         100% {
             opacity: 0.75;
         }
@@ -467,31 +485,28 @@
     });
 </script>
 <script>
-    // --------------------------
-    // ⭐ NEW BARCODE SCANNING UPLOAD LOGIC (Add Only — Do NOT Remove Anything)
-    // --------------------------
     document.getElementById("stickerUploadBtn").onclick = () => {
         const input = document.getElementById("stickerFileInput");
         if (input.files.length === 0) {
             Swal.fire("Oops!", "Please select at least one file", "warning");
             return;
         }
-        const numFiles = input.files.length;
-        const timePerFileSeconds = 5; // Adjust this estimate as needed (e.g., 3 for faster scanning)
-        const totalTimeSeconds = timePerFileSeconds * numFiles;
-        const phaseDurationMs = (totalTimeSeconds / 4) * 1000; // Divide into 4 phases
+
         const phases = [
             'Validating files...',
             'Processing images...',
             'Scanning barcodes...',
+            'Checking data completeness...',  <!-- Naya phase added -->
             'Saving to database...'
         ];
+
         const formData = new FormData();
         Array.from(input.files).forEach(f => formData.append("files", f));
         formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
         Swal.fire({
-            title: 'Scanning Barcodes...',
-            html: phases[0] + '<br>Please wait, this may take a few seconds',
+            title: 'Processing Stickers...',
+            html: phases[0] + '<br><small>Barcode scanning & completeness check in progress</small>',
             allowOutsideClick: false,
             didOpen: () => {
                 Swal.showLoading();
@@ -503,11 +518,12 @@
                         return;
                     }
                     Swal.update({
-                        html: phases[phaseIndex] + '<br>Please wait, this may take a few seconds'
+                        html: phases[phaseIndex] + '<br><small>Barcode scanning & completeness check in progress</small>'
                     });
-                }, phaseDurationMs);
+                }, 1000);
             }
         });
+
         fetch("/stickers/", {
             method: "POST",
             body: formData
@@ -515,31 +531,56 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    let html = `${data.success_count} barcode(s) detected successfully!`;
-                    if (data.failed_count > 0) {
-                        html += `<br>${data.failed_count} failed`;
-                    }
+                    let html = `<strong>${data.success_count} processed successfully | ${data.failed_count} failed</strong><br><br>`;
+                    html += '<div style="text-align:left; max-height: 300px; overflow-y: auto;">';
+
                     if (data.results && data.results.length > 0) {
-                        html += "<hr><div style='text-align:left'>";
                         data.results.forEach(r => {
                             if (r.status === "success") {
-                                html += `<div><b>${r.file}</b> → ${r.barcode}</div>`;
+                                html += `<div class="mb-2 p-2 bg-success bg-opacity-10 rounded">
+                                <i class="ri-checkbox-circle-fill text-success"></i> 
+                                <b>${r.file}</b> → ${r.barcode} <span class="badge bg-success">Processed</span>
+                            </div>`;
                             } else {
-                                html += `<div><b>${r.file}</b> → Failed ( ${r.reason} )</div>`;
+                                html += `<div class="mb-2 p-2 bg-danger bg-opacity-10 rounded">
+                                <i class="ri-close-circle-fill text-danger"></i> 
+                                <b>${r.file}</b> → <span class="text-danger">${r.reason}</span> 
+                                <span class="badge bg-danger">Flagged/Failed</span>
+                            </div>`;
                             }
                         });
-                        html += "</div>";
                     }
+
+                    html += "</div>";
+
+                    // Show completeness summary
+                    if (data.completeness_stats) {
+                        html += `<hr><div class="mt-3">
+                        <h6>Data Completeness Summary:</h6>
+                        <div class="row">
+                            <div class="col-6">✓ Complete Records: ${data.completeness_stats.complete || 0}</div>
+                            <div class="col-6">⚠ Incomplete Records: ${data.completeness_stats.incomplete || 0}</div>
+                        </div>
+                    </div>`;
+                    }
+
                     Swal.fire({
                         icon: data.failed_count === 0 ? 'success' : 'warning',
-                        title: data.failed_count === 0 ? 'All Done!' : 'Partially Completed',
+                        title: data.failed_count === 0 ? 'All Processed!' : 'Processing Complete',
                         html: html,
-                        timer: data.results.length > 5 ? null : 8000,
-                        allowOutsideClick: true
+                        width: '700px',
+                        showConfirmButton: true,
+                        confirmButtonText: 'View Details'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = '/allstickers/';
+                        }
                     });
+
                     // Clear files
                     input.value = "";
                     displayFiles([], "stickerFileList", "stickerFilePreview");
+
                 } else {
                     Swal.fire("Error", data.message || "Upload failed", "error");
                 }
@@ -548,5 +589,104 @@
                 Swal.fire("Error", "Something went wrong!", "error");
             });
     };
+</script>
+<script>
+function runCompleteMatching() {
+    Swal.fire({
+        title: 'Running Complete Matching',
+        html: 'Matching ASINs with Receipt Items...<br><small>This may take a few moments</small>',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+            
+            fetch('/run-matching/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = `<div class="text-start">
+                        <h6>Matching Results:</h6>
+                        <ul>
+                            <li>Sticker Matches: ${data.sticker_matches}</li>
+                            <li>ASIN Matches Found: ${data.asin_matches.matches_found}</li>
+                            <li>MatchedProducts Created: ${data.asin_matches.products_created}</li>
+                        </ul>
+                        <div class="alert alert-success">
+                            <i class="ri-check-line"></i> Matching completed successfully!
+                        </div>
+                    </div>`;
+                    
+                    Swal.fire({
+                        title: 'Matching Complete!',
+                        html: html,
+                        icon: 'success',
+                        confirmButtonText: 'View Matches'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = '/matched-products/';
+                        }
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Matching failed', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Something went wrong: ' + error.message, 'error');
+            });
+        }
+    });
+}
+</script>
+<script>
+function runCompleteMatching() {
+    Swal.fire({
+        title: 'Running Matching',
+        html: 'Matching ASINs with Receipt Items...<br><small>Please wait</small>',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+            
+            fetch('/run-matching/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Matching Complete!',
+                        html: `
+                            <div class="text-start">
+                                <h6>Results:</h6>
+                                <ul>
+                                    <li>ASIN Matches: ${data.asin_matches}</li>
+                                    <li>Sticker Matches: ${data.sticker_matches}</li>
+                                </ul>
+                                <div class="alert alert-success">
+                                    <i class="ri-check-line"></i> Matching completed successfully!
+                                </div>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Matching failed', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Something went wrong: ' + error.message, 'error');
+            });
+        }
+    });
+}
 </script>
 {% endblock %}
