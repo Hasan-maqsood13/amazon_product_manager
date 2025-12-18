@@ -1,93 +1,44 @@
-from io import StringIO
-from django.shortcuts import render
-import pandas as pd
-from django.db import IntegrityError
-from .models import ASINs
-from io import TextIOWrapper
-from django.http import JsonResponse
-import csv
-from core.barcode import process_sticker
-from .models import sticker_data, receipt_items, match_history # Add these imports
-from core.ocr import process_receipt
 from django.shortcuts import render, redirect, HttpResponse, get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect
-from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_protect
-from config.settings import EMAIL_HOST_USER
-from django.views.decorators.csrf import csrf_exempt
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
-from django.utils.dateparse import parse_datetime
-from django.utils.timezone import make_aware
-from django.core.mail import send_mail
-from django.utils.text import slugify
-from django.core import serializers
-from django.contrib import messages
-from django.utils import timezone
-from django.conf import settings
-from urllib.parse import unquote
-from django.db.models import Sum
-from django.urls import reverse
-from datetime import timedelta
-from datetime import datetime
-import random
-import json
-import re
-from django.utils.timezone import now
-from core.models import *
-from django.core.files.base import ContentFile
-from core.validators import validate_multiple_images
-import threading
-from openai import OpenAI
-import easyocr
-from PIL import Image
-import numpy as np
 from django.http import JsonResponse, HttpResponseForbidden
-from django.shortcuts import render, redirect
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.timezone import now
-from .models import *
-from core.validators import *
-from core.preprocessing import *
-from pyzbar.pyzbar import decode
-from core.validators import *
-from .matching import perform_matching
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden, JsonResponse
-from django.contrib import messages
 from django.views.decorators.http import require_POST
-import json
-from django.shortcuts import render, redirect, HttpResponse, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden
-from django.contrib.auth.hashers import make_password, check_password
 from django.views.decorators.csrf import csrf_exempt
-from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.contrib import messages
 from django.utils import timezone
-from django.db import IntegrityError
+from pyzbar.pyzbar import decode
+from django.urls import reverse
 from django.db.models import Q
+from openai import OpenAI
 from io import StringIO
+from PIL import Image
 import pandas as pd
-import csv
-import json
-import re
+import numpy as np
+import easyocr
 import random
-import threading
-from django.db import transaction
-from .models import *
-from .utils import *
+import json
+import csv
+import re
+
+# functions that are importing from other modules
+from core.preprocessing import preprocess_image_pro
 from core.barcode import process_sticker
 from core.ocr import process_receipt
 from core.validators import validate_multiple_images, validate_multiple_stickers
-from core.preprocessing import preprocess_image_pro
-from functools import wraps
+from .models import *
+from .utils import *
+from core.models import *
+from core.validators import *
+from core.preprocessing import *
+from core.validators import *
+
 
 def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
     return str(random.randint(1000, 9999))
 # Create your views here.
+
+
 # Authentication Views
 def register(request):
     if request.method == 'POST':
@@ -128,13 +79,13 @@ def register(request):
                 password=make_password(password),
                 verification_token=verification_code
             )
-            # send_mail(
-            # 'Verify Your Email',
-            # f'Hello {user.username},\n\nThank you for registering!\nYour verification code is: {verification_code}',
-            # 'hasanmaqsood13@gmail.com',
-            # [user.email],
-            # fail_silently=False,
-            # )
+            send_mail(
+            'Verify Your Email',
+            f'Hello {user.username},\n\nThank you for registering!\nYour verification code is: {verification_code}',
+            'hasanmaqsood13@gmail.com',
+            [user.email],
+            fail_silently=False,
+            )
             request.session['verification_email'] = email
             request.session['user_id'] = user.id
             next_url = f"/verify-email/?email={user.email}"
@@ -142,6 +93,8 @@ def register(request):
         except Exception as e:
             return JsonResponse({'success': False, 'errors': {'general': str(e)}})
     return render(request, 'register.html')
+
+
 def emailverification(request):
     if 'verification_email' not in request.session:
         return redirect('register')
@@ -189,6 +142,8 @@ def emailverification(request):
                 'message': 'User not found. Please register again.'
             })
     return render(request, 'verify_email.html')
+
+
 def resend_verification(request):
     if request.method == 'POST':
         user_id = request.session.get('user_id')
@@ -238,6 +193,7 @@ def login(request):
             return JsonResponse({'success': False, 'message': 'Invalid email.'})
     return render(request, 'login.html')
 
+
 def forgotpassword(request):
     if request.method == 'POST':
         email = request.POST.get('email')
@@ -261,6 +217,8 @@ def forgotpassword(request):
                 'message': 'No account found with this email address.'
             })
     return render(request, 'forgotpassword.html')
+
+
 def forgotpasswordemailverify(request):
     if 'reset_email' not in request.session:
         return redirect('forgotpassword')
@@ -292,6 +250,8 @@ def forgotpasswordemailverify(request):
         except User.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'User not found.'})
     return render(request, 'forgotpasswordemailverify.html')
+
+
 def resetpassword(request):
     if 'user_id' not in request.session:
         return redirect('forgotpassword')
@@ -318,6 +278,8 @@ def resetpassword(request):
         except User.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'User not found.'})
     return render(request, 'resetpassword.html')
+
+
 def logout(request):
     try:
         request.session.flush()
@@ -325,7 +287,8 @@ def logout(request):
         return redirect('login')
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
-# Dashboard Views
+    
+
 def admindashboard(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -334,6 +297,8 @@ def admindashboard(request):
     if not user.is_verified or not user.is_active or user.role != "admin":
         return HttpResponseForbidden("Access Denied")
     return render(request, 'admindashboard.html')
+
+
 def dashboard_dd(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -342,6 +307,8 @@ def dashboard_dd(request):
     if not user.is_verified or not user.is_active or user.role != "user":
         return HttpResponseForbidden("Access Denied")
     return HttpResponse("Welcome to the User Dashboard")
+
+
 def get_session_user(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -351,13 +318,14 @@ def get_session_user(request):
         return user, None
     except User.DoesNotExist:
         return None, JsonResponse({"success": False, "error": "User not found."}, status=404)
-# New function for matching
+    
+
 def perform_matching(user):
     pending_stickers = sticker_data.objects.filter(
         user=user, matching_status='pending', status='processed')
     for sticker in pending_stickers:
         if not sticker.barcode:
-            continue # Skip if no barcode
+            continue
         matching_items = receipt_items.objects.filter(
             receipt__user=user, sku=sticker.barcode, status='done')
         for item in matching_items:
@@ -373,9 +341,8 @@ def perform_matching(user):
                 )
                 sticker.matching_status = 'matched'
                 sticker.save()
-                break # Move to next sticker after matching
-# Upload Receipts and Stickers Views
-# Update the process_receipt function in core/ocr.py ya phir views.py mein hi
+                break
+
 def update_receipt_status_after_processing(receipt_id, has_items=True):
     """
     Receipt processing ke baad status update karein
@@ -389,7 +356,8 @@ def update_receipt_status_after_processing(receipt_id, has_items=True):
         receipt.save()
     except receipts.DoesNotExist:
         pass
-# Update upload_receipts function
+
+
 @csrf_exempt
 def upload_receipts(request):
     if request.method != "POST":
@@ -441,17 +409,14 @@ def upload_receipts(request):
             print(f"Error processing {file.name}: {e}")
             continue
    
-    # Process each receipt
     total_items = 0
     for sid in saved_ids:
         try:
             process_receipt(sid)
            
-            # Count items created
             item_count = receipt_items.objects.filter(receipt_id=sid).count()
             total_items += item_count
            
-            # Update receipt status
             receipt_obj = receipts.objects.get(id=sid)
             if item_count > 0:
                 receipt_obj.status = 'done'
@@ -468,14 +433,14 @@ def upload_receipts(request):
     response_data["items_created"] = total_items
     response_data["message"] = f"{total_items} items created and automatically matched with ASINs"
    
-    # NEW: After receipt upload, trigger sticker-receipt matching for unmatched stickers to new items
     from core.matching import perform_sticker_receipt_matching
     sticker_matches = perform_sticker_receipt_matching(user)
     response_data["sticker_matches"] = sticker_matches
     response_data["message"] += f" and {sticker_matches} sticker matches created"
    
     return JsonResponse(response_data)
-# Upload stickers function mein bhi
+
+
 @csrf_exempt
 def upload_stickers(request):
     if request.method != "POST":
@@ -504,10 +469,9 @@ def upload_stickers(request):
             {"file": r['file'], "reason": r['errors'][0]} for r in rejected_files
         ]
    
-    processed_files = [] # Track processed files to avoid duplicates
+    processed_files = []
    
     for file in valid_files:
-        # Check if file already processed in this batch
         if file.name in processed_files:
             response_data["results"].append({
                 "file": file.name,
@@ -517,7 +481,6 @@ def upload_stickers(request):
             continue
        
         try:
-            # Pehle check karein database mein same file to nahi hai
             existing_sticker = stickers.objects.filter(
                 user=user,
                 original_filename=file.name,
@@ -532,7 +495,6 @@ def upload_stickers(request):
                 })
                 continue
            
-            # New sticker create karein
             sticker = stickers(
                 user=user,
                 original_filename=file.name,
@@ -543,10 +505,8 @@ def upload_stickers(request):
             )
             sticker.image_path.save(file.name, file, save=True)
            
-            # Process immediately
             result = process_sticker(sticker.id)
            
-            # Track processed file
             processed_files.append(file.name)
            
             if result["status"] == "success":
@@ -580,8 +540,9 @@ def upload_stickers(request):
             })
    
     return JsonResponse(response_data)
+
+
 def all_receipts(request):
-    # (यह फ़ंक्शन आपके original code जैसा ही रहेगा)
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
@@ -591,11 +552,11 @@ def all_receipts(request):
         return HttpResponseForbidden("Access Denied")
     if not user.is_verified or not user.is_active:
         return HttpResponseForbidden("Access Denied")
-    # NOTE: Pagination अब List.js द्वारा क्लाइंट-साइड पर handle होगी,
-    # इसलिए हम सभी receipts को फ़ेच कर रहे हैं।
     receipts_list = receipts.objects.filter(user=user).order_by('-upload_date')
     return render(request, 'all_receipts.html', {'receipts': receipts_list})
-# 1. सिंगल रिकॉर्ड डिलीट करें
+
+
+
 @require_POST
 def delete_receipt(request, receipt_id):
     user_id = request.session.get('user_id')
@@ -609,19 +570,18 @@ def delete_receipt(request, receipt_id):
         return JsonResponse({'status': 'error', 'message': 'Receipt not found or forbidden'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-# 2. मल्टीपल रिकॉर्ड डिलीट करें
+
+
 @require_POST
 def delete_multiple_receipts(request):
     user_id = request.session.get('user_id')
     if not user_id:
         return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=401)
     try:
-        # Request body से receipt IDs प्राप्त करें
         data = json.loads(request.body)
         receipt_ids = data.get('ids', [])
         if not receipt_ids:
             return JsonResponse({'status': 'error', 'message': 'No receipts selected for deletion.'}, status=400)
-        # केवल वर्तमान user से संबंधित receipts को डिलीट करें
         deleted_count, _ = receipts.objects.filter(
             id__in=receipt_ids, user_id=user_id).delete()
         return JsonResponse({'status': 'success', 'message': f'{deleted_count} receipts deleted successfully.'})
@@ -629,15 +589,17 @@ def delete_multiple_receipts(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-# 3. डिटेल्स पेज
+
+
 def receipt_details(request, receipt_id):
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
     receipt = get_object_or_404(receipts, id=receipt_id, user_id=user_id)
-    # आप यहां एक dedicated 'receipt_details.html' टेम्पलेट का उपयोग कर सकते हैं
+
     return render(request, 'receipt_details.html', {'receipt': receipt})
-# 4. एडिट View (AJAX के लिए)
+
+
 def edit_receipt(request, receipt_id):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -646,29 +608,26 @@ def edit_receipt(request, receipt_id):
         receipts, id=receipt_id, user_id=user_id)
     if request.method == 'POST':
         try:
-            # केवल वे फ़ील्ड अपडेट करें जिनकी अनुमति है (उदाहरण के लिए: original_filename, status)
             receipt_instance.original_filename = request.POST.get(
                 'original_filename', receipt_instance.original_filename)
             receipt_instance.status = request.POST.get(
                 'status', receipt_instance.status)
-            # ... अन्य फ़ील्ड जिन्हें आप एडिट करने की अनुमति देते हैं
             receipt_instance.save()
             return JsonResponse({'status': 'success', 'message': 'Receipt updated successfully.',
                                  'receipt_data': {
                                      'id': receipt_instance.id,
                                      'filename': receipt_instance.original_filename,
                                      'status': receipt_instance.status,
-                                     # ... अन्य अपडेटेड फ़ील्ड्स
                                  }})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    # GET request के लिए, हम बस एक JSON response return करते हैं (modal को populate करने के लिए)
     return JsonResponse({
         'id': receipt_instance.id,
         'original_filename': receipt_instance.original_filename,
         'status': receipt_instance.status,
-        # ... अन्य फ़ील्ड्स
     })
+
+
 def all_receipt_items(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -682,6 +641,8 @@ def all_receipt_items(request):
     items_list = receipt_items.objects.filter(
         receipt__user=user).order_by('-created_at')
     return render(request, 'receipt_items.html', {'receipt_items': items_list})
+
+
 @csrf_exempt
 def update_receipt_item(request):
     if request.method == "POST":
@@ -698,6 +659,8 @@ def update_receipt_item(request):
             return JsonResponse({"success": True})
         except receipt_items.DoesNotExist:
             return JsonResponse({"success": False, "error": "Item not found"})
+
+
 def item_details(request, item_id):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -708,13 +671,15 @@ def item_details(request, item_id):
         return HttpResponseForbidden("Access Denied")
     if not user.is_verified or not user.is_active:
         return HttpResponseForbidden("Access Denied")
-    # Get item with related receipt that belongs to current user
     item = get_object_or_404(
         receipt_items.objects.select_related('receipt'),
         id=item_id,
         receipt__user_id=user_id
     )
     return render(request, 'item_details.html', {'item': item})
+
+
+
 @require_POST
 @csrf_exempt
 def delete_receipt_item(request, item_id):
@@ -722,7 +687,6 @@ def delete_receipt_item(request, item_id):
     if not user_id:
         return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
     try:
-        # Make sure the item belongs to the current user
         item = receipt_items.objects.get(
             id=item_id,
             receipt__user_id=user_id
@@ -733,7 +697,8 @@ def delete_receipt_item(request, item_id):
         return JsonResponse({'success': False, 'error': 'Item not found or forbidden'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
-# Delete multiple items
+
+
 @require_POST
 @csrf_exempt
 def delete_multiple_items(request):
@@ -745,7 +710,7 @@ def delete_multiple_items(request):
         item_ids = data.get('ids', [])
         if not item_ids:
             return JsonResponse({'success': False, 'error': 'No items selected for deletion'}, status=400)
-        # Delete only items that belong to the current user
+
         deleted_count = receipt_items.objects.filter(
             id__in=item_ids,
             receipt__user_id=user_id
@@ -758,6 +723,8 @@ def delete_multiple_items(request):
         return JsonResponse({'success': False, 'error': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+
 def all_stickers(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -770,6 +737,8 @@ def all_stickers(request):
         return HttpResponseForbidden("Access Denied")
     stickers_list = stickers.objects.filter(user=user).order_by('-upload_date')
     return render(request, 'all_stickers.html', {'stickers': stickers_list})
+
+
 @require_POST
 def delete_sticker(request, sticker_id):
     user_id = request.session.get('user_id')
@@ -783,6 +752,8 @@ def delete_sticker(request, sticker_id):
         return JsonResponse({'status': 'error', 'message': 'Sticker not found or forbidden'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+
 @require_POST
 def delete_multiple_stickers(request):
     user_id = request.session.get('user_id')
@@ -800,12 +771,16 @@ def delete_multiple_stickers(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+
 def sticker_details(request, sticker_id):
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
     sticker = get_object_or_404(stickers, id=sticker_id, user_id=user_id)
     return render(request, 'sticker_details.html', {'sticker': sticker})
+
+
 def edit_sticker(request, sticker_id):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -832,6 +807,8 @@ def edit_sticker(request, sticker_id):
         'original_filename': sticker_instance.original_filename,
         'status': sticker_instance.status,
     })
+
+
 def all_sticker_data(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -844,6 +821,8 @@ def all_sticker_data(request):
         return HttpResponseForbidden("Access Denied")
     data_list = sticker_data.objects.filter(user=user).order_by('-created_at')
     return render(request, 'all_sticker_data.html', {'sticker_data': data_list})
+
+
 @csrf_exempt
 def update_sticker_data(request):
     if request.method == "POST":
@@ -858,6 +837,8 @@ def update_sticker_data(request):
             return JsonResponse({"success": True})
         except sticker_data.DoesNotExist:
             return JsonResponse({"success": False, "error": "Sticker data not found"})
+        
+
 def sticker_data_details(request, stickerdata_id):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -874,6 +855,8 @@ def sticker_data_details(request, stickerdata_id):
         user_id=user_id
     )
     return render(request, 'sticker_data_details.html', {'item': data_item})
+
+
 @require_POST
 @csrf_exempt
 def delete_sticker_data(request, stickerdata_id):
@@ -891,6 +874,8 @@ def delete_sticker_data(request, stickerdata_id):
         return JsonResponse({'success': False, 'error': 'Sticker data not found or forbidden'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+
 @require_POST
 @csrf_exempt
 def delete_multiple_sticker_data(request):
@@ -914,6 +899,9 @@ def delete_multiple_sticker_data(request):
         return JsonResponse({'success': False, 'error': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+
+
 def all_matches(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -927,6 +915,8 @@ def all_matches(request):
     matches_list = match_history.objects.filter(
         sticker_data__user=user).order_by('-matched_at')
     return render(request, 'all_matches.html', {'matches': matches_list})
+
+
 @require_POST
 def delete_match(request, match_id):
     user_id = request.session.get('user_id')
@@ -941,6 +931,8 @@ def delete_match(request, match_id):
         return JsonResponse({'status': 'error', 'message': 'Match not found or forbidden'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+
 @require_POST
 def delete_multiple_matches(request):
     user_id = request.session.get('user_id')
@@ -958,6 +950,8 @@ def delete_multiple_matches(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+
 def match_details(request, match_id):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -965,6 +959,8 @@ def match_details(request, match_id):
     match = get_object_or_404(
         match_history, id=match_id, sticker_data__user_id=user_id)
     return render(request, 'match_details.html', {'match': match})
+
+
 def all_unmatched(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -978,21 +974,14 @@ def all_unmatched(request):
     unmatched_list = sticker_data.objects.filter(
         user=user, matched_status='unmatched').order_by('-created_at')
     return render(request, 'all_unmatched.html', {'unmatched': unmatched_list})
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from io import StringIO
-import csv
-import pandas as pd
-from django.utils import timezone
-from .models import ASINs
+
+
 def asin_upload_page(request):
-    # Render the upload page
     return render(request, 'asins_upload.html')
+
 @csrf_exempt
 def upload_asins_file(request):
     if request.method == "GET":
-        # Prevent GET requests here, optionally return empty or redirect
         return JsonResponse({"success": False, "message": "Invalid method"}, status=405)
     if request.method == "POST":
         user, err = get_session_user(request)
@@ -1028,7 +1017,7 @@ def upload_asins_file(request):
                     inserted += 1
             elif file.name.lower().endswith(('.xlsx', '.xls')):
                 df = pd.read_excel(file)
-                df = df.iloc[:, [0, 4, 16]] # Map columns A/E/Q → title/price/asin
+                df = df.iloc[:, [0, 4, 16]] 
                 df.columns = ['title', 'price', 'asin']
                 for _, row in df.iterrows():
                     title = str(row['title']).strip()
@@ -1057,6 +1046,8 @@ def upload_asins_file(request):
             })
         except Exception as e:
             return JsonResponse({"success": False, "message": f"Error processing file: {str(e)}"}, status=500)
+        
+
 def all_asins(request):
     user, err = get_session_user(request)
     if err:
@@ -1066,6 +1057,8 @@ def all_asins(request):
         "asins": asins_list
     }
     return render(request, "all_asins.html", context)
+
+
 def searchablepanel(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -1090,6 +1083,8 @@ def searchablepanel(request):
         'total_matched_with_asins': total_matched_with_asins,
     }
     return render(request, 'searchablepanel.html', context)
+
+
 @csrf_exempt
 def search_dashboard(request):
     if request.method == "POST":
@@ -1105,7 +1100,6 @@ def search_dashboard(request):
             return JsonResponse({'success': False, 'error': 'Please enter a search term'})
         results = []
        
-        # 1. First search in MatchedProducts (most important matches)
         matched_products = MatchedProducts.objects.filter(
             user=user
         ).filter(
@@ -1127,7 +1121,6 @@ def search_dashboard(request):
                 'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p') if item.matched_at else 'N/A',
                 'url': f'/matched-products/details/{item.id}/'
             })
-        # 2. Search in match_history (sticker-receipt matches)
         sticker_matches = match_history.objects.filter(
             sticker_data__user=user
         ).filter(
@@ -1146,8 +1139,7 @@ def search_dashboard(request):
                 'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p') if item.matched_at else 'N/A',
                 'url': f'/match/details/{item.id}/'
             })
-        # 3. Search in receipt_items
-        if len(results) < 10: # Only search if we don't have many matches
+        if len(results) < 10: 
             receipt_items_search = receipt_items.objects.filter(
                 receipt__user=user
             ).filter(
@@ -1167,8 +1159,7 @@ def search_dashboard(request):
                     'url': f'/item/details/{item.id}/',
                     'created_at': item.created_at.strftime('%b %d, %Y %I:%M %p') if item.created_at else 'N/A',
                 })
-        # 4. Search in ASINs
-        if len(results) < 10: # Only search if we don't have many matches
+        if len(results) < 10:
             asins_search = ASINs.objects.filter(user=user).filter(
                 Q(asin__icontains=search_query) |
                 Q(title__icontains=search_query)
@@ -1192,9 +1183,9 @@ def search_dashboard(request):
             'search_query': search_query
         })
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
-# Other CRUD views (delete, edit, details) remain the same as in your original code
-# They are not modified in this update
-# views.py - all_matched_products function mein debug add karein
+
+
+
 def all_matched_products(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -1208,30 +1199,26 @@ def all_matched_products(request):
     if not user.is_verified or not user.is_active:
         return HttpResponseForbidden("Access Denied")
    
-    # Debug print
     print(f"🔍 User ID: {user_id}")
     print(f"👤 User: {user.username}")
    
-    # MatchedProducts ko fetch karein
     matched_products = MatchedProducts.objects.filter(
         user=user
     ).select_related('receipt_item', 'asin_record').order_by('-matched_at')
    
-    # Debug: Count print karein
     print(f"📊 Total matched products found: {matched_products.count()}")
    
-    # Agar data hai to details print karein
-    for mp in matched_products[:5]: # Sirf first 5
+    for mp in matched_products[:5]:
         print(f"📦 Match: {mp.receipt_item.product_name} → {mp.asin_record.asin}")
    
-    # Statistics calculate karein
+
     stats = {
         'total_matches': matched_products.count(),
         'unique_asins': matched_products.values('asin_record').distinct().count(),
         'unique_products': matched_products.values('receipt_item').distinct().count(),
     }
    
-    # Debug stats print karein
+
     print(f"📈 Stats: {stats}")
    
     return render(request, 'matched_products.html', {
@@ -1239,6 +1226,8 @@ def all_matched_products(request):
         'stats': stats,
         'user': user
     })
+
+
 @csrf_exempt
 def run_matching(request):
     """Manual matching run karne ke liye"""
@@ -1255,10 +1244,8 @@ def run_matching(request):
         return JsonResponse({'success': False, 'error': 'User not found'})
    
     try:
-        # 1. ASIN matching (receipt items ke saath)
         matched_products_count = 0
        
-        # Get all receipt items
         receipt_items_list = receipt_items.objects.filter(
             receipt__user=user,
             status='processed'
@@ -1268,14 +1255,12 @@ def run_matching(request):
             if item.product_name and item.product_name != 'Unknown':
                 product_name_lower = item.product_name.strip().lower()
                
-                # Find matching ASINs
                 matching_asins = ASINs.objects.filter(
                     user=user,
                     title__iexact=product_name_lower
                 )
                
                 for asin in matching_asins:
-                    # Save to MatchedProducts
                     obj, created = MatchedProducts.objects.get_or_create(
                         user=user,
                         receipt_item=item,
@@ -1285,11 +1270,9 @@ def run_matching(request):
                    
                     if created:
                         matched_products_count += 1
-                        # Update ASIN count
                         asin.match_count += 1
                         asin.save()
        
-        # 2. Sticker matching
         from core.matching import match_sticker_with_receipt
         sticker_matches = match_sticker_with_receipt(user)
        
@@ -1320,7 +1303,6 @@ def update_receipt_item(request):
     except User.DoesNotExist:
         return JsonResponse({"success": False, "error": "User not found"})
    
-    # DEBUG: Print all POST data
     print("=== DEBUG: Received POST Data ===")
     for key, value in request.POST.items():
         print(f"{key}: {value}")
@@ -1330,7 +1312,6 @@ def update_receipt_item(request):
         if not item_id:
             return JsonResponse({"success": False, "error": "Item ID is required"})
        
-        # Get item with proper user check
         item = receipt_items.objects.get(
             id=item_id,
             receipt__user_id=user_id
@@ -1339,12 +1320,10 @@ def update_receipt_item(request):
         print(f"=== DEBUG: Found item {item.id} ===")
         print(f"Old status: {item.status}")
        
-        # Update all fields
         item.line_number = request.POST.get("line_number", item.line_number)
         item.sku = request.POST.get("sku", item.sku)
         item.product_name = request.POST.get("product_name", item.product_name)
        
-        # Handle numeric fields properly
         quantity = request.POST.get("quantity")
         if quantity and quantity.strip() and quantity != 'null':
             item.quantity = float(quantity)
@@ -1363,7 +1342,6 @@ def update_receipt_item(request):
         else:
             item.total_price = None
        
-        # Update status
         new_status = request.POST.get("status")
         print(f"New status from form: {new_status}")
        
@@ -1372,15 +1350,12 @@ def update_receipt_item(request):
        
         item.raw_text = request.POST.get("raw_text", "")
        
-        # Save the item
         item.save()
        
-        # Reload from database to confirm
         item.refresh_from_db()
         print(f"=== DEBUG: After Save ===")
         print(f"New status: {item.status}")
        
-        # Return success response
         return JsonResponse({
             "success": True,
             "message": "Item updated successfully",

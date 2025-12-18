@@ -136,30 +136,72 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-dark text-white p-4">
-                <h5 class="modal-title" id="guidelinesModalLabel"><i class="ri-lightbulb-flash-line me-2"></i> Upload
+                <h5 class="modal-title text-light" id="guidelinesModalLabel"><i class="ri-lightbulb-flash-line me-2"></i> Upload
                     Best Practices</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <h6 class="text-primary fw-bold mb-3">🧾 For Receipts & Invoices:</h6>
-                <ul>
-                    <li><strong>Flat & Clear:</strong> Ensure documents are flat, fully visible, and well-lit.</li>
-                    <li><strong>Full Page Scan:</strong> Capture the entire document, especially the header (store
-                        name/date) and item list.</li>
-                    <li><strong>Allowed Formats:</strong> PDF is recommended for multi-page documents. JPG/PNG for
-                        single pages. Max 10MB per batch, multiple files allowed.</li>
+                <p class="text-muted mb-4">
+                    Follow these guidelines to ensure accurate data extraction, faster processing, and correct SKU/FNSKU
+                    matching within the Amazon Inventory Tracking System.
+                </p>
+
+                <h6 class="text-primary fw-bold mb-3">🧾 Receipts & Supplier Invoices</h6>
+                <ul class="mb-4">
+                    <li>
+                        <strong>Document Clarity:</strong> Upload flat, high-resolution scans or photos. Text, prices,
+                        quantities, and dates must be clearly readable.
+                    </li>
+                    <li>
+                        <strong>Complete Coverage:</strong> Ensure the full page is visible, including supplier name,
+                        invoice/receipt number, purchase date, and complete item list.
+                    </li>
+                    <li>
+                        <strong>Preferred Formats:</strong> Use PDF for multi-page receipts or invoices. JPG/PNG is
+                        acceptable
+                        for single-page documents.
+                    </li>
+                    <li>
+                        <strong>File Limits:</strong> Maximum 10MB per upload batch. Multiple files can be uploaded
+                        together.
+                    </li>
+                    <li>
+                        <strong>No Edits or Cropping:</strong> Avoid excessive cropping, filters, or annotations that
+                        may
+                        interfere with automated data extraction.
+                    </li>
                 </ul>
+
                 <hr>
-                <h6 class="text-success fw-bold mb-3">🏷️ For Product Stickers:</h6>
+
+                <h6 class="text-success fw-bold mb-3">🏷️ Product Stickers (FNSKU / Barcode Labels)</h6>
                 <ul>
-                    <li><strong>Extreme Close-up:</strong> Focus tightly on the FNSKU/Barcode area.</li>
-                    <li><strong>No Glare:</strong> Avoid shadows or light reflections on the barcode.</li>
-                    <li><strong>One Sticker, One Photo:</strong> For maximum accuracy, upload one clear sticker image
-                        per file. Clear, non-blurry, de-noised, close-up photos give faster & more accurate results—but
-                        it works anyway!</li>
+                    <li>
+                        <strong>Close-up Focus:</strong> Capture a tight, centered image of the FNSKU or barcode. The
+                        code
+                        should occupy most of the frame.
+                    </li>
+                    <li>
+                        <strong>Lighting & Quality:</strong> Ensure proper lighting with no glare, shadows, or
+                        reflections.
+                        Images must be sharp and non-blurry.
+                    </li>
+                    <li>
+                        <strong>One Sticker per Image:</strong> Upload a single sticker per file for accurate barcode
+                        recognition and correct SKU matching.
+                    </li>
+                    <li>
+                        <strong>Original Images Only:</strong> Do not upload screenshots, edited images, or low-quality
+                        compressed files.
+                    </li>
+                    <li>
+                        <strong>Accuracy Impact:</strong> Clear, high-quality sticker images significantly improve FNSKU
+                        detection and inventory matching accuracy.
+                    </li>
                 </ul>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-soft-secondary" data-bs-dismiss="modal">Got It!</button>
             </div>
@@ -279,7 +321,7 @@
             document.getElementById(previewId).style.display =
                 fileList.children.length > 0 ? 'block' : 'none';
         }
-        
+
         // --------------------------
         // 📌 Remove File
         // --------------------------
@@ -295,7 +337,7 @@
             input.files = dt.files;
             displayFiles(dt.files, listId, listId.replace("List", "Preview"));
         };
-        
+
         // --------------------------
         // 📌 Handle Drag/Drop & File Select
         // --------------------------
@@ -307,7 +349,7 @@
             input.files = dt.files;
             displayFiles(dt.files, listId, previewId);
         }
-        
+
         // --------------------------
         // 📌 Upload Function - IMPROVED VERSION
         // --------------------------
@@ -327,7 +369,7 @@
 
             const files = Array.from(input.files);
             const totalSizeMB = files.reduce((a, f) => a + f.size, 0) / (1024 * 1024);
-            
+
             // Time calculation improve karein
             const estimatedSeconds = Math.max(3, Math.ceil(totalSizeMB * 1.5));
             const phaseDurationMs = Math.floor((estimatedSeconds * 1000) / 4);
@@ -363,19 +405,19 @@
                 didOpen: () => {
                     // Progress bar animation smooth rakhein
                     const progressBar = document.getElementById('progress-bar');
-                    
+
                     phaseTimer = setInterval(() => {
                         phaseIndex++;
-                        
+
                         if (phaseIndex < phases.length) {
                             // Phase text update
                             document.getElementById('phase-text').textContent = phases[phaseIndex];
-                            
+
                             // Progress bar update (smooth)
                             const progressWidth = ((phaseIndex + 1) / phases.length) * 100;
                             progressBar.style.width = `${progressWidth}%`;
                         }
-                        
+
                         // Last phase tak pahunche to spinner speed maintain karein
                         if (phaseIndex >= phases.length - 1) {
                             progressBar.style.width = '100%';
@@ -410,7 +452,7 @@
                                 <div class="alert alert-info mb-3">
                                     <strong>${data.accepted} accepted | ${data.rejected} rejected</strong>
                                 </div>`;
-                            
+
                             if (data.accepted > 0) {
                                 html += `<div class="mb-3">
                                     <h6>✅ Accepted Files:</h6>
@@ -418,7 +460,7 @@
                                 (data.accepted_files || []).forEach(f => html += `<li class="list-group-item list-group-item-success">${f}</li>`);
                                 html += `</ul>`;
                             }
-                            
+
                             if (data.rejected > 0) {
                                 html += `<div>
                                     <h6>❌ Rejected Files:</h6>
@@ -444,13 +486,13 @@
                                         </thead>
                                         <tbody>`;
                             (data.results || []).forEach(r => {
-                                const statusClass = r.status === 'success' ? 'table-success' : 
-                                                   r.status === 'failed' ? 'table-danger' : 'table-warning';
+                                const statusClass = r.status === 'success' ? 'table-success' :
+                                    r.status === 'failed' ? 'table-danger' : 'table-warning';
                                 html += `<tr class="${statusClass}">
                                     <td>${r.file}</td>
                                     <td>
-                                        <span class="badge ${r.status === 'success' ? 'bg-success' : 
-                                                           r.status === 'failed' ? 'bg-danger' : 'bg-warning'}">
+                                        <span class="badge ${r.status === 'success' ? 'bg-success' :
+                                        r.status === 'failed' ? 'bg-danger' : 'bg-warning'}">
                                             ${r.status}
                                         </span>
                                     </td>
@@ -506,42 +548,42 @@
         // --------------------------
         // 📌 Event Listeners Setup
         // --------------------------
-        
+
         // Receipt Upload Button
         document.getElementById("receiptUploadBtn").onclick = () => {
             uploadWithFeedback("receiptFileInput", "/receipts/", "receipts");
         };
-        
+
         // Sticker Upload Button
         document.getElementById("stickerUploadBtn").onclick = () => {
             uploadWithFeedback("stickerFileInput", "/stickers/", "stickers");
         };
-        
+
         // --------------------------
         // Receipt Section
         // --------------------------
         const rInput = document.getElementById("receiptFileInput");
         const rDropzone = document.getElementById("receiptDropzone");
-        
+
         rDropzone.onclick = () => rInput.click();
         rInput.addEventListener("change", () => displayFiles(rInput.files, "receiptFileList", "receiptFilePreview"));
-        
+
         // Drag/drop for receipts
         rDropzone.addEventListener("dragover", e => e.preventDefault());
         rDropzone.addEventListener("drop", e => {
             e.preventDefault();
             handleFiles(e.dataTransfer.files, "receiptFileInput", "receiptFileList", "receiptFilePreview");
         });
-        
+
         // --------------------------
         // Sticker Section
         // --------------------------
         const sInput = document.getElementById("stickerFileInput");
         const sDropzone = document.getElementById("stickerDropzone");
-        
+
         sDropzone.onclick = () => sInput.click();
         sInput.addEventListener("change", () => displayFiles(sInput.files, "stickerFileList", "stickerFilePreview"));
-        
+
         // Drag/drop for stickers
         sDropzone.addEventListener("dragover", e => e.preventDefault());
         sDropzone.addEventListener("drop", e => {
