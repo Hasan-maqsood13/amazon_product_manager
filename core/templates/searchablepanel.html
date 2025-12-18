@@ -546,24 +546,13 @@ $(document).ready(function() {
                 badgeClass = 'badge-matched-asin';
                 icon = 'ri-checkbox-multiple-line';
                 statusBadge = `<span class="badge bg-success match-status-badge ms-2">ASIN Matched</span>`;
-                actions = `
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewMatchedProductDetails(${item.id})">
-                        <i class="ri-eye-line"></i> View Match
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteMatchedProduct(${item.id})">
-                        <i class="ri-delete-bin-line"></i> Delete
-                    </button>
-                `;
+                
             }
             else if (item.category === 'sticker_match') {
                 badgeClass = 'badge-sticker-match';
                 icon = 'ri-arrow-left-right-line';
                 statusBadge = `<span class="badge bg-info match-status-badge ms-2">Sticker Match</span>`;
-                actions = `
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewMatchHistoryDetails(${item.id})">
-                        <i class="ri-eye-line"></i> View Details
-                    </button>
-                `;
+               
             }
             else if (item.category === 'receipt') {
                 badgeClass = 'badge-receipt';
@@ -573,14 +562,7 @@ $(document).ready(function() {
                 } else if (item.matched_status === 'matched') {
                     statusBadge = `<span class="badge bg-success match-status-badge ms-2">Matched</span>`;
                 }
-                actions = `
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewReceiptItemDetails(${item.id})">
-                        <i class="ri-eye-line"></i> View Item
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning" onclick="matchWithASIN(${item.id})">
-                        <i class="ri-links-line"></i> Match ASIN
-                    </button>
-                `;
+                
             }
             else if (item.category === 'asin') {
                 badgeClass = 'badge-asin';
@@ -588,14 +570,7 @@ $(document).ready(function() {
                 statusBadge = `<span class="badge ${item.match_count > 0 ? 'bg-success' : 'bg-secondary'} match-status-badge ms-2">
                     ${item.match_count} match${item.match_count !== 1 ? 'es' : ''}
                 </span>`;
-                actions = `
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewASINDetails(${item.id})">
-                        <i class="ri-eye-line"></i> View ASIN
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteASIN(${item.id})">
-                        <i class="ri-delete-bin-line"></i> Delete
-                    </button>
-                `;
+                
             }
 
             // Build the HTML for each result

@@ -248,7 +248,7 @@ def process_receipt(receipt_id):
                 code = code_line.replace('Code:', '').strip()
              
                 if code != 'Not found' and code in seen_skus:
-                    code = 'Duplicate - ' + code
+                    code = code
              
                 seen_skus.add(code)
              

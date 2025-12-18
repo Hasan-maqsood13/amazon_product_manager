@@ -45,7 +45,7 @@
                                             <th>Original Filename</th>
                                             <th>Barcode</th>
                                             <th>Status</th>
-                                            <th>Matching Status</th>
+                                            <th>Matched Status</th>
                                             <th>Upload Date</th>
                                             <th>File Size (KB)</th>
                                             <th>Action</th>
@@ -64,13 +64,13 @@
                                             <td class="filename">{{ data.original_filename }}</td>
                                             <td class="barcode">{{ data.barcode|default:"N/A" }}</td>
                                             <td class="status">
-                                                <span class="badge bg-{% if data.status == 'done' %}success{% elif data.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if data.status == 'done' %}success{% elif data.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                <span class="badge bg-{% if data.status == 'processed' %}success{% elif data.status == 'flagged' %}danger{% else %}warning{% endif %}-subtle text-{% if data.status == 'processed' %}success{% elif data.status == 'flagged' %}danger{% else %}warning{% endif %} text-uppercase">
                                                     {{ data.status|title }}
                                                 </span>
                                             </td>
-                                            <td class="matching_status">
-                                                <span class="badge bg-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %}-subtle text-{% if data.matching_status == 'done' %}success{% elif data.matching_status == 'unmatched' %}danger{% else %}warning{% endif %} text-uppercase">
-                                                    {{ data.matching_status|title }}
+                                            <td class="matched_status">
+                                                <span class="badge bg-{% if data.matched_status == 'matched' %}success{% else %}danger{% endif %}-subtle text-{% if data.matched_status == 'matched' %}success{% else %}danger{% endif %} text-uppercase">
+                                                    {{ data.matched_status|title }}
                                                 </span>
                                             </td>
                                             <td class="date">{{ data.upload_date|date:"d M, Y" }}</td>
@@ -90,7 +90,7 @@
                                                         data-filename="{{ data.original_filename }}"
                                                         data-barcode="{{ data.barcode }}"
                                                         data-status="{{ data.status }}"
-                                                        data-matching="{{ data.matching_status }}">
+                                                        data-matched-status="{{ data.matched_status }}">
                                                         Edit
                                                     </button>
                                                    
@@ -159,16 +159,14 @@
                         <div class="col-md-6">
                             <label for="edit-status" class="form-label">Status</label>
                             <select class="form-select" id="edit-status" name="status" required>
-                                <option value="pending">Pending</option>
                                 <option value="processed">Processed</option>
-                                <option value="failed">Failed</option>
+                                <option value="flagged">Flagged for review</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="edit-matching" class="form-label">Matching Status</label>
-                            <select class="form-select" id="edit-matching" name="matching_status" required>
-                                <option value="pending">Pending</option>
-                                <option value="done">Done</option>
+                            <label for="edit-matched" class="form-label">Matched Status</label>
+                            <select class="form-select" id="edit-matched" name="matched_status" required>
+                                <option value="matched">Matched</option>
                                 <option value="unmatched">Unmatched</option>
                             </select>
                         </div>
@@ -223,7 +221,7 @@
             const filenameCell = row.querySelector('.filename');
             const barcodeCell = row.querySelector('.barcode');
             const statusCell = row.querySelector('.status');
-            const matchingCell = row.querySelector('.matching_status');
+            const matchedCell = row.querySelector('.matched_status');
             const dateCell = row.querySelector('.date');
             const sizeCell = row.querySelector('.size');
             
@@ -232,7 +230,7 @@
             row.dataset.filename = filenameCell ? filenameCell.textContent.trim() : '';
             row.dataset.barcode = barcodeCell ? barcodeCell.textContent.trim() : '';
             row.dataset.status = statusCell ? statusCell.textContent.trim() : '';
-            row.dataset.matchingStatus = matchingCell ? matchingCell.textContent.trim() : '';
+            row.dataset.matchedStatus = matchedCell ? matchedCell.textContent.trim() : '';
             row.dataset.date = dateCell ? dateCell.textContent.trim() : '';
             row.dataset.size = sizeCell ? sizeCell.textContent.trim() : '';
         });
@@ -281,7 +279,7 @@
                     row.dataset.filename.toLowerCase().includes(searchTerm) ||
                     row.dataset.barcode.toLowerCase().includes(searchTerm) ||
                     row.dataset.status.toLowerCase().includes(searchTerm) ||
-                    row.dataset.matchingStatus.toLowerCase().includes(searchTerm) ||
+                    row.dataset.matchedStatus.toLowerCase().includes(searchTerm) ||
                     row.dataset.date.toLowerCase().includes(searchTerm) ||
                     row.dataset.size.toLowerCase().includes(searchTerm)
                 );
@@ -327,9 +325,9 @@
                     aValue = a.dataset.status.toLowerCase();
                     bValue = b.dataset.status.toLowerCase();
                     break;
-                case 5: // Matching Status
-                    aValue = a.dataset.matchingStatus.toLowerCase();
-                    bValue = b.dataset.matchingStatus.toLowerCase();
+                case 5: // Matched Status
+                    aValue = a.dataset.matchedStatus.toLowerCase();
+                    bValue = b.dataset.matchedStatus.toLowerCase();
                     break;
                 case 6: // Date
                     aValue = new Date(a.dataset.date);
@@ -453,7 +451,7 @@
         document.getElementById("original_filename").value = button.dataset.filename;
         document.getElementById("barcode").value = button.dataset.barcode;
         document.getElementById("edit-status").value = button.dataset.status.toLowerCase();
-        document.getElementById("edit-matching").value = button.dataset.matching.toLowerCase();
+        document.getElementById("edit-matched").value = button.dataset.matchedStatus.toLowerCase();
     }
     
     // Universal SweetAlert confirmation function

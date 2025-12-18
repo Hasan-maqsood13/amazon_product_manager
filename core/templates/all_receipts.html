@@ -1,6 +1,5 @@
 {% extends 'AB_base.html' %}
 {% block title %} All Receipts {% endblock %}
-
 {% block content %}
 <div class="page-content">
     <div class="container-fluid">
@@ -38,7 +37,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <div class="table-responsive table-card mt-3 mb-1">
                                 <table class="table align-middle table-nowrap" id="receiptTable">
                                     <thead class="table-light text-center">
@@ -82,7 +80,6 @@
                                                         onclick="window.location.href='{% url 'receipt_details' receipt.id %}'">
                                                         View
                                                     </button>
-
                                                     <!-- Remove Button - Now opens SweetAlert directly -->
                                                     <button class="btn btn-sm btn-danger remove-item-btn"
                                                         onclick="showReceiptDeleteConfirmation('{{ receipt.id }}')">
@@ -108,7 +105,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <!-- Pagination -->
                             <div class="d-flex justify-content-end mt-3">
                                 <nav aria-label="Page navigation">
@@ -124,10 +120,8 @@
         </div>
     </div>
 </div>
-
 <!-- Edit Receipt Modal -->
 <!-- Add your edit modal here if needed -->
-
 <script>
     // Global variables
     let currentPage = 1;
@@ -136,7 +130,6 @@
     let filteredReceipts = [];
     let sortColumn = null;
     let sortDirection = 'asc';
-
     // CSRF Token Function
     function getCookie(name) {
         let cookieValue = null;
@@ -153,13 +146,11 @@
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
-
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function () {
         // Get all receipts from table
         const rows = document.querySelectorAll('#receiptTableBody tr');
         allReceipts = Array.from(rows).filter(row => !row.querySelector('td[colspan]'));
-
         // Store original data in each row
         allReceipts.forEach((row, index) => {
             const cells = row.querySelectorAll('td');
@@ -168,7 +159,6 @@
             const statusCell = row.querySelector('.status');
             const dateCell = row.querySelector('.date');
             const sizeCell = row.querySelector('.size');
-
             row.dataset.index = index;
             row.dataset.id = idCell ? idCell.textContent.trim() : '';
             row.dataset.filename = filenameCell ? filenameCell.textContent.trim() : '';
@@ -176,23 +166,18 @@
             row.dataset.date = dateCell ? dateCell.textContent.trim() : '';
             row.dataset.size = sizeCell ? sizeCell.textContent.trim() : '';
         });
-
         filteredReceipts = [...allReceipts];
-
         // Initialize pagination
         setupPagination();
         showPage(1);
-
         // Setup search
         document.getElementById('searchInput').addEventListener('input', function (e) {
             filterTable(e.target.value);
         });
-
         // Setup checkbox events
         document.getElementById('checkAll').addEventListener('change', function () {
             toggleSelectAll(this);
         });
-
         // Add event listeners to individual checkboxes
         document.querySelectorAll('.row-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
@@ -200,11 +185,9 @@
             });
         });
     });
-
     // Filter table based on search input
     function filterTable(searchTerm) {
         searchTerm = searchTerm.toLowerCase();
-
         if (!searchTerm) {
             filteredReceipts = [...allReceipts];
         } else {
@@ -218,7 +201,6 @@
                 );
             });
         }
-
         // Show/hide no result message
         const noResultDiv = document.getElementById('noResult');
         if (filteredReceipts.length === 0) {
@@ -226,13 +208,11 @@
         } else {
             noResultDiv.style.display = 'none';
         }
-
         // Reset to first page
         currentPage = 1;
         setupPagination();
         showPage(currentPage);
     }
-
     // Sort table
     function sortTable(columnIndex) {
         if (sortColumn === columnIndex) {
@@ -241,10 +221,8 @@
             sortColumn = columnIndex;
             sortDirection = 'asc';
         }
-
         filteredReceipts.sort((a, b) => {
             let aValue, bValue;
-
             switch (columnIndex) {
                 case 2: // Filename
                     aValue = a.dataset.filename.toLowerCase();
@@ -265,29 +243,23 @@
                 default:
                     return 0;
             }
-
             if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-
         showPage(currentPage);
     }
-
     // Setup pagination
     function setupPagination() {
         const totalPages = Math.ceil(filteredReceipts.length / rowsPerPage);
         const paginationDiv = document.getElementById('pagination');
         paginationDiv.innerHTML = '';
-
         if (totalPages <= 1) return;
-
         // Previous button
         const prevLi = document.createElement('li');
         prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
         prevLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage - 1})">Previous</a>`;
         paginationDiv.appendChild(prevLi);
-
         // Page numbers
         for (let i = 1; i <= totalPages; i++) {
             const li = document.createElement('li');
@@ -295,14 +267,12 @@
             li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${i})">${i}</a>`;
             paginationDiv.appendChild(li);
         }
-
         // Next button
         const nextLi = document.createElement('li');
         nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
         nextLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage + 1})">Next</a>`;
         paginationDiv.appendChild(nextLi);
     }
-
     // Change page
     function changePage(page) {
         if (page < 1 || page > Math.ceil(filteredReceipts.length / rowsPerPage)) return;
@@ -310,23 +280,19 @@
         showPage(page);
         setupPagination();
     }
-
     // Show specific page
     function showPage(page) {
         const start = (page - 1) * rowsPerPage;
         const end = start + rowsPerPage;
-
         // First hide all rows
         allReceipts.forEach(row => {
             row.style.display = 'none';
         });
-
         // Show only rows for current page from filteredReceipts
         const pageRows = filteredReceipts.slice(start, end);
         pageRows.forEach(row => {
             row.style.display = '';
         });
-
         // Also show no result message if no rows
         const noResultDiv = document.getElementById('noResult');
         if (filteredReceipts.length === 0) {
@@ -335,18 +301,15 @@
             noResultDiv.style.display = 'none';
         }
     }
-
     // Toggle select all checkboxes
     function toggleSelectAll(source) {
         const checkboxes = document.querySelectorAll('.row-checkbox');
         const visibleRows = filteredReceipts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-
         // Get IDs of visible rows
         const visibleIds = visibleRows.map(row => {
             const checkbox = row.querySelector('.row-checkbox');
             return checkbox ? checkbox.value : null;
         }).filter(id => id !== null);
-
         // Toggle only visible checkboxes
         checkboxes.forEach(checkbox => {
             if (visibleIds.includes(checkbox.value)) {
@@ -354,22 +317,17 @@
             }
         });
     }
-
     // Update select all checkbox
     function updateSelectAllCheckbox() {
         const visibleRows = filteredReceipts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
         const visibleCheckboxes = visibleRows.map(row => row.querySelector('.row-checkbox')).filter(cb => cb);
-
         if (visibleCheckboxes.length === 0) return;
-
         const allChecked = visibleCheckboxes.every(cb => cb.checked);
         const someChecked = visibleCheckboxes.some(cb => cb.checked);
-
         const selectAllCheckbox = document.getElementById('checkAll');
         selectAllCheckbox.checked = allChecked;
         selectAllCheckbox.indeterminate = someChecked && !allChecked;
     }
-
     // Universal SweetAlert confirmation function
     function showConfirmation(title, text, confirmText, cancelText = 'Cancel') {
         return Swal.fire({
@@ -390,7 +348,6 @@
             buttonsStyling: false
         });
     }
-
     // Universal success message function
     function showSuccessMessage(title, text) {
         Swal.fire({
@@ -403,7 +360,6 @@
             timerProgressBar: true
         });
     }
-
     // Universal error message function
     function showErrorMessage(title, text) {
         Swal.fire({
@@ -414,7 +370,6 @@
             confirmButtonText: 'OK'
         });
     }
-
     // Show delete confirmation for single receipt
     function showReceiptDeleteConfirmation(receiptId) {
         showConfirmation(
@@ -427,12 +382,10 @@
             }
         });
     }
-
     // Delete single receipt
     function deleteSingleReceipt(receiptId) {
         if (!receiptId) return;
-
-        fetch(`/delete-receipt/${receiptId}/`, {  // Update this URL with your actual endpoint
+        fetch(`/receipts/delete/${receiptId}/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
@@ -446,7 +399,7 @@
                 return response.json();
             })
             .then(data => {
-                if (data.success || data.status === 'success') {
+                if (data.status === 'success') {
                     // Remove row from table
                     const row = document.getElementById(`row-${receiptId}`);
                     if (row) {
@@ -454,17 +407,14 @@
                         // Update arrays
                         allReceipts = allReceipts.filter(r => r.id !== `row-${receiptId}`);
                         filteredReceipts = filteredReceipts.filter(r => r.id !== `row-${receiptId}`);
-
                         // Update pagination
                         setupPagination();
                         showPage(currentPage);
                     }
-
                     // Show success message
                     showSuccessMessage('Deleted!', 'Receipt has been deleted successfully.');
-
                 } else {
-                    throw new Error(data.error || data.message || 'Deletion failed');
+                    throw new Error(data.message || 'Deletion failed');
                 }
             })
             .catch(error => {
@@ -472,18 +422,15 @@
                 showErrorMessage('Error!', 'An error occurred during deletion: ' + error.message);
             });
     }
-
     // Delete multiple receipts
     function deleteMultipleReceipts() {
         const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
             .map(cb => parseInt(cb.value))
             .filter(id => !isNaN(id));
-
         if (selectedIds.length === 0) {
             showErrorMessage('Warning!', 'Please select at least one receipt to delete.');
             return;
         }
-
         showConfirmation(
             'Are you sure?',
             `You are about to delete ${selectedIds.length} receipt(s). This action cannot be undone!`,
@@ -494,10 +441,9 @@
             }
         });
     }
-
     // Process multiple delete
     function deleteMultipleReceiptsProcess(selectedIds) {
-        fetch('/delete-multiple-receipts/', {  // Update this URL with your actual endpoint
+        fetch('/receipts/delete-multiple/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
@@ -512,13 +458,12 @@
                 return response.json();
             })
             .then(data => {
-                if (data.success || data.status === 'success') {
+                if (data.status === 'success') {
                     // Remove selected rows
                     selectedIds.forEach(id => {
                         const row = document.getElementById(`row-${id}`);
                         if (row) row.remove();
                     });
-
                     // Update arrays
                     allReceipts = allReceipts.filter(row => {
                         const rowId = parseInt(row.id.replace('row-', ''));
@@ -528,19 +473,16 @@
                         const rowId = parseInt(row.id.replace('row-', ''));
                         return !selectedIds.includes(rowId);
                     });
-
                     // Update pagination
                     setupPagination();
                     showPage(currentPage);
-
                     // Reset select all checkbox
                     document.getElementById('checkAll').checked = false;
                     document.getElementById('checkAll').indeterminate = false;
-
                     // Show success message
                     showSuccessMessage('Deleted!', `${selectedIds.length} receipt(s) have been deleted successfully.`);
                 } else {
-                    throw new Error(data.error || data.message || 'Deletion failed');
+                    throw new Error(data.message || 'Deletion failed');
                 }
             })
             .catch(error => {
@@ -549,48 +491,38 @@
             });
     }
 </script>
-
 <style>
     .page-item.active .page-link {
         background-color: #405189;
         border-color: #405189;
     }
-
     .page-link {
         color: #405189;
     }
-
     .page-link:hover {
         color: #405189;
     }
-
     .sort {
         cursor: pointer;
         user-select: none;
     }
-
     .sort:hover {
         background-color: #f8f9fa;
     }
-
     .noresult {
         display: none;
         padding: 2rem 0;
     }
-
     /* SweetAlert custom styles */
     .swal2-popup {
         border-radius: 10px !important;
     }
-
     .swal2-title {
         font-size: 1.5rem !important;
         font-weight: 600 !important;
     }
-
     .swal2-html-container {
         font-size: 1rem !important;
     }
 </style>
-
 {% endblock %}
