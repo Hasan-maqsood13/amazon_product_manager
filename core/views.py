@@ -1325,15 +1325,15 @@ def search_dashboard(request):
         except User.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'User not found'}, status=404)
 
-        search_query = request.POST.get('search', '').strip()
+        search_query = request.POST.get('search', '').strip().lower()
 
         if not search_query:
             return JsonResponse({'success': False, 'error': 'Please enter a search term'})
 
         results = []
         
-        # 1. Search in MatchedProducts
-        matched_prods = MatchedProducts.objects.filter(
+        # 1. First search in MatchedProducts (most important matches)
+        matched_products = MatchedProducts.objects.filter(
             user=user
         ).filter(
             Q(receipt_item__sku__icontains=search_query) |
@@ -1342,7 +1342,7 @@ def search_dashboard(request):
             Q(asin_record__title__icontains=search_query)
         ).select_related('receipt_item', 'asin_record')[:20]
 
-        for item in matched_prods:
+        for item in matched_products:
             results.append({
                 'id': item.id,
                 'type': 'Receipt → ASIN Match',
@@ -1350,13 +1350,13 @@ def search_dashboard(request):
                 'sku': item.receipt_item.sku if item.receipt_item.sku else 'N/A',
                 'product_name': item.receipt_item.product_name if item.receipt_item.product_name else 'N/A',
                 'asin': item.asin_record.asin,
-                'title': item.asin_record.title[:80] + '...' if len(item.asin_record.title) > 80 else item.asin_record.title,
-                'confidence': item.confidence,
-                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p'),
-                'url': '#'
+                'title': item.asin_record.title,
+                'price': f"${item.asin_record.price:.2f}" if item.asin_record.price else 'N/A',
+                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p') if item.matched_at else 'N/A',
+                'url': f'/matched-products/details/{item.id}/'
             })
 
-        # 2. Search in match_history
+        # 2. Search in match_history (sticker-receipt matches)
         sticker_matches = match_history.objects.filter(
             sticker_data__user=user
         ).filter(
@@ -1369,14 +1369,16 @@ def search_dashboard(request):
                 'id': item.id,
                 'type': 'Sticker → Receipt Match',
                 'category': 'sticker_match',
-                'sku': item.SKU,
+                'sku': item.SKU if item.SKU else 'N/A',
                 'product_name': item.receipt_item.product_name if item.receipt_item.product_name else 'N/A',
-                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p'),
-                'url': 'match_details'
+                'quantity': str(item.receipt_item.quantity) if item.receipt_item.quantity else 'N/A',
+                'price': f"${item.receipt_item.unit_price:.2f}" if item.receipt_item.unit_price else 'N/A',
+                'matched_at': item.matched_at.strftime('%b %d, %Y %I:%M %p') if item.matched_at else 'N/A',
+                'url': f'/match/details/{item.id}/'
             })
 
         # 3. Search in receipt_items
-        if not results:
+        if len(results) < 10:  # Only search if we don't have many matches
             receipt_items_search = receipt_items.objects.filter(
                 receipt__user=user
             ).filter(
@@ -1393,12 +1395,14 @@ def search_dashboard(request):
                     'product_name': item.product_name if item.product_name else 'N/A',
                     'quantity': str(item.quantity) if item.quantity else 'N/A',
                     'price': f"${item.unit_price:.2f}" if item.unit_price else 'N/A',
-                    'url': 'item_details',
-                    'created_at': item.receipt.upload_date.strftime('%b %d, %Y'),
+                    'total_price': f"${item.total_price:.2f}" if item.total_price else 'N/A',
+                    'matched_status': item.matched_status,
+                    'url': f'/item/details/{item.id}/',
+                    'created_at': item.created_at.strftime('%b %d, %Y %I:%M %p') if item.created_at else 'N/A',
                 })
 
         # 4. Search in ASINs
-        if not results:
+        if len(results) < 10:  # Only search if we don't have many matches
             asins_search = ASINs.objects.filter(user=user).filter(
                 Q(asin__icontains=search_query) |
                 Q(title__icontains=search_query)
@@ -1410,10 +1414,11 @@ def search_dashboard(request):
                     'type': 'ASIN Record',
                     'category': 'asin',
                     'asin': item.asin,
-                    'title': item.title[:80] + '...' if len(item.title) > 80 else item.title,
+                    'title': item.title,
                     'price': f"${item.price:.2f}" if item.price else 'N/A',
-                    'url': '#',
-                    'created_at': item.created_at.strftime('%b %d, %Y')
+                    'match_count': item.match_count,
+                    'url': f'/asin/details/{item.id}/',
+                    'created_at': item.created_at.strftime('%b %d, %Y %I:%M %p') if item.created_at else 'N/A'
                 })
 
         return JsonResponse({
@@ -1542,3 +1547,59 @@ def run_matching(request):
             'success': False,
             'error': str(e)
         })
+    
+
+@csrf_exempt
+def update_receipt_item(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return JsonResponse({'success': False, 'error': 'User not authenticated'})
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'User not found'})
+    
+    # Get item ID from form
+    item_id = request.POST.get('item_id')
+    if not item_id:
+        return JsonResponse({'success': False, 'error': 'Item ID is required'})
+    
+    try:
+        # Get the receipt item
+        item = receipt_items.objects.get(id=item_id, receipt__user=user)
+        
+        # Update fields
+        item.line_number = request.POST.get('line_number', item.line_number)
+        item.sku = request.POST.get('sku', item.sku)
+        item.product_name = request.POST.get('product_name', item.product_name)
+        item.quantity = request.POST.get('quantity', item.quantity)
+        item.unit_price = request.POST.get('unit_price', item.unit_price)
+        item.total_price = request.POST.get('total_price', item.total_price)
+        item.raw_text = request.POST.get('raw_text', item.raw_text)
+        
+        # Update status fields
+        new_status = request.POST.get('status')
+        new_matched_status = request.POST.get('matched_status')
+        
+        if new_status and new_status in dict(receipt_items.STATUS_CHOICES):
+            item.status = new_status
+        
+        if new_matched_status and new_matched_status in dict(receipt_items.MATCHED_STATUS_CHOICES):
+            item.matched_status = new_matched_status
+        
+        # Save the item (this will trigger the save() method)
+        item.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Item updated successfully'
+        })
+        
+    except receipt_items.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Item not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

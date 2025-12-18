@@ -67,4 +67,5 @@ urlpatterns = [
     path('matched-products/', views.all_matched_products, name='all_matched_products'),
     path('run-matching/', views.run_matching, name='run_matching'),
 
+    path('update-receipt-item/', views.update_receipt_item, name='update_receipt_item'),
 ]

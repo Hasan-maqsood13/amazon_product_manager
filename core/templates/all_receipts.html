@@ -15,11 +15,15 @@
                             <div class="row g-4 mb-3">
                                 <div class="col-sm-auto">
                                     <div>
-                                        <button type="button" class="btn btn-success add-btn" data-bs-toggle="modal"
-                                            id="create-btn" data-bs-target="#showModal">
-                                            <i class="ri-add-line align-bottom me-1"></i> Add
+                                        <button type="button" class="btn btn-success add-btn" id="create-btn"
+                                            data-bs-target="#showModal">
+                                            <i class="ri-add-line align-bottom me-1"></i> <a
+                                                href="{% url 'dashboard' %}"
+                                                style="text-decoration: none; color: rgb(255, 255, 255);">Upload
+                                                Receipts</a>
                                         </button>
-                                        <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultiple()">
+                                        <button class="btn btn-soft-danger" id="delete-multiple-btn"
+                                            onclick="deleteMultipleReceipts()">
                                             <i class="ri-delete-bin-2-line"></i> Delete Selected
                                         </button>
                                     </div>
@@ -27,7 +31,8 @@
                                 <div class="col-sm">
                                     <div class="d-flex justify-content-sm-end">
                                         <div class="search-box ms-2">
-                                            <input type="text" class="form-control search" id="searchInput" placeholder="Search...">
+                                            <input type="text" class="form-control search" id="searchInput"
+                                                placeholder="Search...">
                                             <i class="ri-search-line search-icon"></i>
                                         </div>
                                     </div>
@@ -40,14 +45,15 @@
                                         <tr>
                                             <th scope="col" style="width: 50px;">
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleSelectAll(this)">
+                                                    <input class="form-check-input" type="checkbox" id="checkAll"
+                                                        onclick="toggleSelectAll(this)">
                                                 </div>
                                             </th>
                                             <th>ID</th>
-                                            <th class="sort" onclick="sortTable(2)">Original Filename</th>
-                                            <th class="sort" onclick="sortTable(3)">Status</th>
-                                            <th class="sort" onclick="sortTable(4)">Upload Date</th>
-                                            <th class="sort" onclick="sortTable(5)">File Size (KB)</th>
+                                            <th>Original Filename</th>
+                                            <th>Status</th>
+                                            <th>Upload Date</th>
+                                            <th>File Size (KB)</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -56,14 +62,15 @@
                                         <tr id="row-{{ receipt.id }}">
                                             <th scope="row">
                                                 <div class="form-check">
-                                                    <input class="form-check-input row-checkbox" type="checkbox" 
-                                                           name="chk_child" value="{{ receipt.id }}">
+                                                    <input class="form-check-input row-checkbox" type="checkbox"
+                                                        name="chk_child" value="{{ receipt.id }}">
                                                 </div>
                                             </th>
-                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="id" style="color: #868585;">{{ forloop.counter }}</td>
                                             <td class="filename">{{ receipt.original_filename }}</td>
                                             <td class="status">
-                                                <span class="badge bg-{% if receipt.status == 'processed' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if receipt.status == 'processed' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                <span
+                                                    class="badge bg-{% if receipt.status == 'done' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if receipt.status == 'done' %}success{% elif receipt.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
                                                     {{ receipt.get_status_display }}
                                                 </span>
                                             </td>
@@ -75,12 +82,11 @@
                                                         onclick="window.location.href='{% url 'receipt_details' receipt.id %}'">
                                                         View
                                                     </button>
-                                                    
 
+                                                    <!-- Remove Button - Now opens SweetAlert directly -->
                                                     <button class="btn btn-sm btn-danger remove-item-btn"
-                                                        data-bs-toggle="modal" data-bs-target="#deleteRecordModal"
-                                                        data-receipt-id="{{ receipt.id }}">
-                                                        Remove
+                                                        onclick="showReceiptDeleteConfirmation('{{ receipt.id }}')">
+                                                        <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
                                                 </div>
                                             </td>
@@ -98,7 +104,7 @@
                                             colors="primary:#121331,secondary:#08a88a"
                                             style="width:75px;height:75px"></lord-icon>
                                         <h5 class="mt-2">Sorry! No Result Found</h5>
-                                        <p class="text-muted mb-0">We've searched more than 150+ receipts but did not find any matches.</p>
+                                        <p class="text-muted mb-0">We've searched but did not find any matches.</p>
                                     </div>
                                 </div>
                             </div>
@@ -119,34 +125,8 @@
     </div>
 </div>
 
-<!-- Delete Single Record Modal -->
-<div class="modal fade zoomIn" id="deleteRecordModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mt-2 text-center">
-                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
-                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
-                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
-                        <h4>Are you sure?</h4>
-                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this record?</p>
-                    </div>
-                </div>
-                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
-                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteSingle">Yes, Delete It!</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Edit Receipt Modal -->
-
+<!-- Add your edit modal here if needed -->
 
 <script>
     // Global variables
@@ -154,7 +134,6 @@
     const rowsPerPage = 10;
     let allReceipts = [];
     let filteredReceipts = [];
-    let currentReceiptId = null;
     let sortColumn = null;
     let sortDirection = 'asc';
 
@@ -176,66 +155,47 @@
     const csrftoken = getCookie('csrftoken');
 
     // Initialize when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Get all receipts from table
         const rows = document.querySelectorAll('#receiptTableBody tr');
-        allReceipts = Array.from(rows).filter(row => !row.classList.contains('no-data'));
-        
+        allReceipts = Array.from(rows).filter(row => !row.querySelector('td[colspan]'));
+
         // Store original data in each row
         allReceipts.forEach((row, index) => {
-            row.dataset.index = index;
             const cells = row.querySelectorAll('td');
-            row.dataset.filename = cells[1]?.textContent || '';
-            row.dataset.status = cells[2]?.querySelector('.badge')?.textContent.trim() || '';
-            row.dataset.date = cells[3]?.textContent || '';
-            row.dataset.size = cells[4]?.textContent || '';
+            const idCell = row.querySelector('.id');
+            const filenameCell = row.querySelector('.filename');
+            const statusCell = row.querySelector('.status');
+            const dateCell = row.querySelector('.date');
+            const sizeCell = row.querySelector('.size');
+
+            row.dataset.index = index;
+            row.dataset.id = idCell ? idCell.textContent.trim() : '';
+            row.dataset.filename = filenameCell ? filenameCell.textContent.trim() : '';
+            row.dataset.status = statusCell ? statusCell.textContent.trim() : '';
+            row.dataset.date = dateCell ? dateCell.textContent.trim() : '';
+            row.dataset.size = sizeCell ? sizeCell.textContent.trim() : '';
         });
 
         filteredReceipts = [...allReceipts];
-        
+
         // Initialize pagination
         setupPagination();
         showPage(1);
-        
+
         // Setup search
-        document.getElementById('searchInput').addEventListener('input', function(e) {
+        document.getElementById('searchInput').addEventListener('input', function (e) {
             filterTable(e.target.value);
         });
-        
-        // Setup single delete modal
-        const deleteModal = document.getElementById('deleteRecordModal');
-        deleteModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            currentReceiptId = button.getAttribute('data-receipt-id');
-        });
-        
-        // Confirm single delete
-        document.getElementById('confirmDeleteSingle').addEventListener('click', function() {
-            deleteSingleReceipt(currentReceiptId);
-        });
-        
-        // Setup edit modal
-        const editModal = document.getElementById('editReceiptModal');
-        editModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const receiptId = button.getAttribute('data-receipt-id');
-            loadReceiptForEdit(receiptId);
-        });
-        
-        // Handle edit form submission
-        document.getElementById('editReceiptForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            updateReceipt();
-        });
-        
+
         // Setup checkbox events
-        document.getElementById('checkAll').addEventListener('change', function() {
+        document.getElementById('checkAll').addEventListener('change', function () {
             toggleSelectAll(this);
         });
-        
+
         // Add event listeners to individual checkboxes
         document.querySelectorAll('.row-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 updateSelectAllCheckbox();
             });
         });
@@ -244,13 +204,13 @@
     // Filter table based on search input
     function filterTable(searchTerm) {
         searchTerm = searchTerm.toLowerCase();
-        
+
         if (!searchTerm) {
             filteredReceipts = [...allReceipts];
         } else {
             filteredReceipts = allReceipts.filter(row => {
                 return (
-                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.id.toLowerCase().includes(searchTerm) ||
                     row.dataset.filename.toLowerCase().includes(searchTerm) ||
                     row.dataset.status.toLowerCase().includes(searchTerm) ||
                     row.dataset.date.toLowerCase().includes(searchTerm) ||
@@ -258,7 +218,7 @@
                 );
             });
         }
-        
+
         // Show/hide no result message
         const noResultDiv = document.getElementById('noResult');
         if (filteredReceipts.length === 0) {
@@ -266,7 +226,7 @@
         } else {
             noResultDiv.style.display = 'none';
         }
-        
+
         // Reset to first page
         currentPage = 1;
         setupPagination();
@@ -281,11 +241,11 @@
             sortColumn = columnIndex;
             sortDirection = 'asc';
         }
-        
+
         filteredReceipts.sort((a, b) => {
             let aValue, bValue;
-            
-            switch(columnIndex) {
+
+            switch (columnIndex) {
                 case 2: // Filename
                     aValue = a.dataset.filename.toLowerCase();
                     bValue = b.dataset.filename.toLowerCase();
@@ -305,14 +265,12 @@
                 default:
                     return 0;
             }
-            
-            if (sortDirection === 'asc') {
-                return aValue > bValue ? 1 : -1;
-            } else {
-                return aValue < bValue ? 1 : -1;
-            }
+
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
         });
-        
+
         showPage(currentPage);
     }
 
@@ -321,27 +279,27 @@
         const totalPages = Math.ceil(filteredReceipts.length / rowsPerPage);
         const paginationDiv = document.getElementById('pagination');
         paginationDiv.innerHTML = '';
-        
+
         if (totalPages <= 1) return;
-        
+
         // Previous button
         const prevLi = document.createElement('li');
         prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>`;
+        prevLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage - 1})">Previous</a>`;
         paginationDiv.appendChild(prevLi);
-        
+
         // Page numbers
         for (let i = 1; i <= totalPages; i++) {
             const li = document.createElement('li');
             li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-            li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${i})">${i}</a>`;
             paginationDiv.appendChild(li);
         }
-        
+
         // Next button
         const nextLi = document.createElement('li');
         nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>`;
+        nextLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage + 1})">Next</a>`;
         paginationDiv.appendChild(nextLi);
     }
 
@@ -357,97 +315,189 @@
     function showPage(page) {
         const start = (page - 1) * rowsPerPage;
         const end = start + rowsPerPage;
-        const pageRows = filteredReceipts.slice(start, end);
-        
-        // Hide all rows
+
+        // First hide all rows
         allReceipts.forEach(row => {
             row.style.display = 'none';
         });
-        
-        // Show only rows for current page
+
+        // Show only rows for current page from filteredReceipts
+        const pageRows = filteredReceipts.slice(start, end);
         pageRows.forEach(row => {
             row.style.display = '';
         });
+
+        // Also show no result message if no rows
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredReceipts.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
     }
 
     // Toggle select all checkboxes
     function toggleSelectAll(source) {
         const checkboxes = document.querySelectorAll('.row-checkbox');
+        const visibleRows = filteredReceipts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+        // Get IDs of visible rows
+        const visibleIds = visibleRows.map(row => {
+            const checkbox = row.querySelector('.row-checkbox');
+            return checkbox ? checkbox.value : null;
+        }).filter(id => id !== null);
+
+        // Toggle only visible checkboxes
         checkboxes.forEach(checkbox => {
-            checkbox.checked = source.checked;
+            if (visibleIds.includes(checkbox.value)) {
+                checkbox.checked = source.checked;
+            }
         });
     }
 
-    // Update select all checkbox based on individual checkboxes
+    // Update select all checkbox
     function updateSelectAllCheckbox() {
-        const checkboxes = document.querySelectorAll('.row-checkbox');
-        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
-        
+        const visibleRows = filteredReceipts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        const visibleCheckboxes = visibleRows.map(row => row.querySelector('.row-checkbox')).filter(cb => cb);
+
+        if (visibleCheckboxes.length === 0) return;
+
+        const allChecked = visibleCheckboxes.every(cb => cb.checked);
+        const someChecked = visibleCheckboxes.some(cb => cb.checked);
+
         const selectAllCheckbox = document.getElementById('checkAll');
         selectAllCheckbox.checked = allChecked;
         selectAllCheckbox.indeterminate = someChecked && !allChecked;
     }
 
+    // Universal SweetAlert confirmation function
+    function showConfirmation(title, text, confirmText, cancelText = 'Cancel') {
+        return Swal.fire({
+            title: title,
+            text: text,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: confirmText,
+            cancelButtonText: cancelText,
+            width: 500,
+            padding: '2em',
+            customClass: {
+                confirmButton: 'btn btn-primary',
+                cancelButton: 'btn btn-danger'
+            },
+            buttonsStyling: false
+        });
+    }
+
+    // Universal success message function
+    function showSuccessMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'success',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            timerProgressBar: true
+        });
+    }
+
+    // Universal error message function
+    function showErrorMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'error',
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'OK'
+        });
+    }
+
+    // Show delete confirmation for single receipt
+    function showReceiptDeleteConfirmation(receiptId) {
+        showConfirmation(
+            'Are you sure?',
+            'You won\'t be able to revert this!',
+            'Yes, delete it!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteSingleReceipt(receiptId);
+            }
+        });
+    }
+
     // Delete single receipt
     function deleteSingleReceipt(receiptId) {
         if (!receiptId) return;
-        
-        fetch(`{% url 'delete_receipt' 0 %}`.replace('0', receiptId), {
+
+        fetch(`/delete-receipt/${receiptId}/`, {  // Update this URL with your actual endpoint
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Remove row from table
-                const row = document.getElementById(`row-${receiptId}`);
-                if (row) {
-                    row.remove();
-                    // Update arrays
-                    allReceipts = allReceipts.filter(r => r.id !== `row-${receiptId}`);
-                    filteredReceipts = filteredReceipts.filter(r => r.id !== `row-${receiptId}`);
-                    
-                    // Update pagination
-                    setupPagination();
-                    showPage(currentPage);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-                
-                // Show success message
-                showToast('Success', data.message, 'success');
-                
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRecordModal'));
-                modal.hide();
-            } else {
-                showToast('Error', data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'An error occurred during deletion.', 'error');
-        });
+                return response.json();
+            })
+            .then(data => {
+                if (data.success || data.status === 'success') {
+                    // Remove row from table
+                    const row = document.getElementById(`row-${receiptId}`);
+                    if (row) {
+                        row.remove();
+                        // Update arrays
+                        allReceipts = allReceipts.filter(r => r.id !== `row-${receiptId}`);
+                        filteredReceipts = filteredReceipts.filter(r => r.id !== `row-${receiptId}`);
+
+                        // Update pagination
+                        setupPagination();
+                        showPage(currentPage);
+                    }
+
+                    // Show success message
+                    showSuccessMessage('Deleted!', 'Receipt has been deleted successfully.');
+
+                } else {
+                    throw new Error(data.error || data.message || 'Deletion failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorMessage('Error!', 'An error occurred during deletion: ' + error.message);
+            });
     }
 
     // Delete multiple receipts
-    function deleteMultiple() {
+    function deleteMultipleReceipts() {
         const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
             .map(cb => parseInt(cb.value))
             .filter(id => !isNaN(id));
-        
+
         if (selectedIds.length === 0) {
-            showToast('Warning', 'Please select at least one receipt to delete.', 'warning');
+            showErrorMessage('Warning!', 'Please select at least one receipt to delete.');
             return;
         }
-        
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected receipt(s)?`)) {
-            return;
-        }
-        
-        fetch(`{% url 'delete_multiple_receipts' %}`, {
+
+        showConfirmation(
+            'Are you sure?',
+            `You are about to delete ${selectedIds.length} receipt(s). This action cannot be undone!`,
+            'Yes, delete them!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteMultipleReceiptsProcess(selectedIds);
+            }
+        });
+    }
+
+    // Process multiple delete
+    function deleteMultipleReceiptsProcess(selectedIds) {
+        fetch('/delete-multiple-receipts/', {  // Update this URL with your actual endpoint
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
@@ -455,131 +505,48 @@
             },
             body: JSON.stringify({ ids: selectedIds })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Remove selected rows
-                selectedIds.forEach(id => {
-                    const row = document.getElementById(`row-${id}`);
-                    if (row) row.remove();
-                });
-                
-                // Update arrays
-                allReceipts = allReceipts.filter(row => {
-                    const rowId = parseInt(row.id.replace('row-', ''));
-                    return !selectedIds.includes(rowId);
-                });
-                filteredReceipts = filteredReceipts.filter(row => {
-                    const rowId = parseInt(row.id.replace('row-', ''));
-                    return !selectedIds.includes(rowId);
-                });
-                
-                // Update pagination
-                setupPagination();
-                showPage(currentPage);
-                
-                // Reset select all checkbox
-                document.getElementById('checkAll').checked = false;
-                document.getElementById('checkAll').indeterminate = false;
-                
-                showToast('Success', data.message, 'success');
-            } else {
-                showToast('Error', data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'An error occurred during deletion.', 'error');
-        });
-    }
-
-    // Load receipt data for editing
-    function loadReceiptForEdit(receiptId) {
-        fetch(`{% url 'edit_receipt' 0 %}`.replace('0', receiptId))
-        .then(response => response.json())
-        .then(data => {
-            if (data.status && data.status === 'error') {
-                showToast('Error', data.message, 'error');
-                return;
-            }
-            
-            document.getElementById('edit-receipt-id').value = data.id;
-            document.getElementById('edit-original-filename').value = data.original_filename;
-            document.getElementById('edit-status').value = data.status;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'Could not load receipt details for editing.', 'error');
-        });
-    }
-
-    // Update receipt
-    function updateReceipt() {
-        const form = document.getElementById('editReceiptForm');
-        const formData = new FormData(form);
-        const receiptId = formData.get('id');
-        
-        fetch(`{% url 'edit_receipt' 0 %}`.replace('0', receiptId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update row in table
-                const row = document.getElementById(`row-${receiptId}`);
-                if (row) {
-                    // Update filename
-                    const filenameCell = row.querySelector('.filename');
-                    if (filenameCell) filenameCell.textContent = data.receipt_data.filename;
-                    
-                    // Update status badge
-                    const statusCell = row.querySelector('.status');
-                    if (statusCell) {
-                        const badge = statusCell.querySelector('.badge');
-                        if (badge) {
-                            // Update badge color based on status
-                            const status = data.receipt_data.status;
-                            const colorMap = {
-                                'processed': 'success',
-                                'failed': 'danger',
-                                'pending': 'warning'
-                            };
-                            const color = colorMap[status] || 'warning';
-                            
-                            badge.className = `badge bg-${color}-subtle text-${color} text-uppercase`;
-                            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                        }
-                    }
-                    
-                    // Update dataset
-                    row.dataset.filename = data.receipt_data.filename;
-                    row.dataset.status = data.receipt_data.status;
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-                
-                showToast('Success', data.message, 'success');
-                
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editReceiptModal'));
-                modal.hide();
-            } else {
-                showToast('Error', data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'An error occurred during update.', 'error');
-        });
-    }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success || data.status === 'success') {
+                    // Remove selected rows
+                    selectedIds.forEach(id => {
+                        const row = document.getElementById(`row-${id}`);
+                        if (row) row.remove();
+                    });
 
-    // Toast notification function
-    function showToast(title, message, type = 'info') {
-        // You can integrate with your existing toast system or use a simple alert
-        // For now, using alert but you should replace with proper toast
-        alert(`${title}: ${message}`);
+                    // Update arrays
+                    allReceipts = allReceipts.filter(row => {
+                        const rowId = parseInt(row.id.replace('row-', ''));
+                        return !selectedIds.includes(rowId);
+                    });
+                    filteredReceipts = filteredReceipts.filter(row => {
+                        const rowId = parseInt(row.id.replace('row-', ''));
+                        return !selectedIds.includes(rowId);
+                    });
+
+                    // Update pagination
+                    setupPagination();
+                    showPage(currentPage);
+
+                    // Reset select all checkbox
+                    document.getElementById('checkAll').checked = false;
+                    document.getElementById('checkAll').indeterminate = false;
+
+                    // Show success message
+                    showSuccessMessage('Deleted!', `${selectedIds.length} receipt(s) have been deleted successfully.`);
+                } else {
+                    throw new Error(data.error || data.message || 'Deletion failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorMessage('Error!', 'An error occurred during deletion: ' + error.message);
+            });
     }
 </script>
 
@@ -588,27 +555,41 @@
         background-color: #405189;
         border-color: #405189;
     }
-    
+
     .page-link {
         color: #405189;
     }
-    
+
     .page-link:hover {
         color: #405189;
     }
-    
+
     .sort {
         cursor: pointer;
         user-select: none;
     }
-    
+
     .sort:hover {
         background-color: #f8f9fa;
     }
-    
-    .table-checkbox {
-        width: 18px;
-        height: 18px;
+
+    .noresult {
+        display: none;
+        padding: 2rem 0;
+    }
+
+    /* SweetAlert custom styles */
+    .swal2-popup {
+        border-radius: 10px !important;
+    }
+
+    .swal2-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+    }
+
+    .swal2-html-container {
+        font-size: 1rem !important;
     }
 </style>
 

@@ -1,150 +1,168 @@
-<!-- matched_products.html -->
 {% extends 'AB_base.html' %}
 {% load static %}
-{% block title %} Matched-Products {% endblock %}
+{% block title %} Matched Products {% endblock %}
 {% block content %}
 <div class="page-content">
     <div class="container-fluid">
         <div class="row">
             <div class="col-lg-12">
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">ASIN to Product Matches</h5>
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">Matched Products (ASIN to Receipt Items)</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="matchProductList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
                                     <div>
-                                        <span class="badge bg-primary me-2">
-                                            {{ matched_products.count }} Matches
-                                        </span>
+                                        <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleMatches()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
                                     </div>
                                 </div>
-
-                                {% if matched_products.count > 0 %}
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Receipt Product</th>
-                                                <th>ASIN</th>
-                                                <th>ASIN Title</th>
-                                                <th>Matched At</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for match in matched_products %}
-                                            <tr>
-                                                <td>{{ forloop.counter }}</td>
-                                                <td>
-                                                    <strong>{{ match.receipt_item.product_name }}</strong><br>
-                                                    <small class="text-muted">
-                                                        SKU: {{ match.receipt_item.sku|default:"N/A" }}<br>
-                                                        Qty: {{ match.receipt_item.quantity|default:"1" }} × ${{
-                                                        match.receipt_item.unit_price|default:"0.00" }}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <code
-                                                        class="bg-light p-1 rounded">{{ match.asin_record.asin }}</code>
-                                                </td>
-                                                <td>
-                                                    <span title="{{ match.asin_record.title }}">
-                                                        {{ match.asin_record.title|truncatechars:50 }}
-                                                    </span>
-                                                </td>
-
-                                                <td>{{ match.matched_at|date:"M d, Y H:i" }}</td>
-                                                <td>
-                                                    <a href="{% url 'item_details' match.receipt_item.id %}"
-                                                        class="btn btn-sm btn-outline-primary"
-                                                        title="View Receipt Item">
-                                                        <i class="ri-eye-line"></i>
-                                                    </a>
-                                                    <a href="#" class="btn btn-sm btn-outline-info ms-1"
-                                                        title="View ASIN Details"
-                                                        onclick="viewAsin('{{ match.asin_record.asin }}')">
-                                                        <i class="ri-barcode-line"></i>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="searchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
                                 </div>
+                            </div>
 
-                                <!-- Pagination (agar records zyada ho) -->
-                                {% if matched_products.count > 50 %}
-                                <nav aria-label="Page navigation">
-                                    <ul class="pagination justify-content-center">
-                                        <li class="page-item disabled">
-                                            <a class="page-link" href="#" tabindex="-1">Previous</a>
-                                        </li>
-                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                        <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                        <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                        <li class="page-item">
-                                            <a class="page-link" href="#">Next</a>
-                                        </li>
-                                    </ul>
-                                </nav>
-                                {% endif %}
-
-                                {% else %}
-                                <div class="text-center py-5">
-                                    <i class="ri-inbox-line fs-48 text-muted mb-3"></i>
-                                    <h4 class="text-muted">No Matched Products Found</h4>
-                                    <p class="text-muted mb-4">There are no matches between your receipt items and ASINs
-                                        yet.</p>
-
-                                    <div class="row justify-content-center">
-                                        <div class="col-md-4">
-                                            <div class="card mb-3">
-                                                <div class="card-body text-center">
-                                                    <i class="ri-file-upload-line fs-32 text-primary mb-2"></i>
-                                                    <h6>Upload Receipts</h6>
-                                                    <p class="small text-muted">Upload purchase receipts to extract
-                                                        product information</p>
-                                                    <a href="{% url 'upload_receipts' %}"
-                                                        class="btn btn-sm btn-primary">
-                                                        Upload Receipts
-                                                    </a>
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="matchProductTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleSelectAll(this)">
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card mb-3">
-                                                <div class="card-body text-center">
-                                                    <i class="ri-barcode-box-line fs-32 text-success mb-2"></i>
-                                                    <h6>Upload ASINs</h6>
-                                                    <p class="small text-muted">Upload your ASIN list to match with
-                                                        receipt items</p>
-                                                    <a href="{% url 'asin_upload_page' %}"
-                                                        class="btn btn-sm btn-success">
-                                                        Upload ASINs
-                                                    </a>
+                                            </th>
+                                            <th>ID</th>
+                                            <th>Receipt Product</th>
+                                            <th>ASIN</th>
+                                            <th>ASIN Title</th>
+                                            <th>SKU</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Matched At</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="matchProductTableBody">
+                                        {% for match in matched_products %}
+                                        <tr id="match-row-{{ match.id }}" class="match-product-row">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input row-checkbox" type="checkbox"
+                                                           name="chk_child" value="{{ match.id }}">
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card mb-3">
-                                                <div class="card-body text-center">
-                                                    <i class="ri-refresh-line fs-32 text-warning mb-2"></i>
-                                                    <h6>Run Matching</h6>
-                                                    <p class="small text-muted">Run the matching algorithm to find
-                                                        matches</p>
-                                                    <button class="btn btn-sm btn-warning" onclick="runMatching()">
-                                                        Run Matching
+                                            </th>
+                                            <td class="id" style="color: #868585;">{{ forloop.counter }}</td>
+                                            <td class="product_name">
+                                                <strong>{{ match.receipt_item.product_name|default:"N/A" }}</strong>
+                                            </td>
+                                            <td class="asin">
+                                                <code class="bg-light p-1 rounded">{{ match.asin_record.asin }}</code>
+                                            </td>
+                                            <td class="asin_title">
+                                                <span title="{{ match.asin_record.title }}">
+                                                    {{ match.asin_record.title|truncatechars:50 }}
+                                                </span>
+                                            </td>
+                                            <td class="sku">{{ match.receipt_item.sku|default:"N/A" }}</td>
+                                            <td class="quantity">{{ match.receipt_item.quantity|default:"1" }}</td>
+                                            <td class="unit_price">${{ match.receipt_item.unit_price|default:"0.00" }}</td>
+                                            <td class="matched_at">{{ match.matched_at|date:"d M, Y H:i" }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="window.location.href='{% url 'item_details' match.receipt_item.id %}'">
+                                                        <i class="ri-eye-line"></i> Receipt
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success"
+                                                        onclick="viewAsin('{{ match.asin_record.asin }}')">
+                                                        <i class="ri-barcode-line"></i> ASIN
                                                     </button>
                                                 </div>
-                                            </div>
-                                        </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="10" class="text-center">
+                                                <div class="text-center py-5">
+                                                    <i class="ri-inbox-line fs-48 text-muted mb-3"></i>
+                                                    <h4 class="text-muted">No Matched Products Found</h4>
+                                                    <p class="text-muted mb-4">There are no matches between your receipt items and ASINs yet.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="noResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched but did not find any matches.</p>
                                     </div>
                                 </div>
-                                {% endif %}
+                            </div>
+
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="pagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
                             </div>
                         </div>
+                        
+                        <!-- Empty State Cards -->
+                        {% if matched_products.count == 0 %}
+                        <div class="row justify-content-center mt-4">
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body text-center">
+                                        <i class="ri-file-upload-line fs-32 text-primary mb-2"></i>
+                                        <h6>Upload Receipts</h6>
+                                        <p class="small text-muted">Upload purchase receipts to extract product information</p>
+                                        <a href="{% url 'upload_receipts' %}" class="btn btn-sm btn-primary">
+                                            Upload Receipts
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body text-center">
+                                        <i class="ri-barcode-box-line fs-32 text-success mb-2"></i>
+                                        <h6>Upload ASINs</h6>
+                                        <p class="small text-muted">Upload your ASIN list to match with receipt items</p>
+                                        <a href="{% url 'asin_upload_page' %}" class="btn btn-sm btn-success">
+                                            Upload ASINs
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body text-center">
+                                        <i class="ri-refresh-line fs-32 text-warning mb-2"></i>
+                                        <h6>Run Matching</h6>
+                                        <p class="small text-muted">Run the matching algorithm to find matches</p>
+                                        <button class="btn btn-sm btn-warning" onclick="runMatching()">
+                                            Run Matching
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -152,9 +170,427 @@
     </div>
 </div>
 
+<!-- Delete Match Modal -->
+<div class="modal fade zoomIn" id="deleteMatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mt-2 text-center">
+                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
+                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
+                        <h4>Are you sure?</h4>
+                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this matched product?</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
+                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteSingle">Yes, Delete It!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    // Global variables
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let allMatches = [];
+    let filteredMatches = [];
+    let currentMatchId = null;
+    let sortColumn = null;
+    let sortDirection = 'asc';
+
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all matches from table
+        const rows = document.querySelectorAll('#matchProductTableBody .match-product-row');
+        allMatches = Array.from(rows);
+        
+        // Store original data in each row
+        allMatches.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+            const idCell = row.querySelector('.id');
+            const productNameCell = row.querySelector('.product_name');
+            const asinCell = row.querySelector('.asin');
+            const asinTitleCell = row.querySelector('.asin_title');
+            const skuCell = row.querySelector('.sku');
+            const quantityCell = row.querySelector('.quantity');
+            const unitPriceCell = row.querySelector('.unit_price');
+            const matchedAtCell = row.querySelector('.matched_at');
+            
+            row.dataset.index = index;
+            row.dataset.id = idCell ? idCell.textContent.trim() : '';
+            row.dataset.productName = productNameCell ? productNameCell.textContent.trim() : '';
+            row.dataset.asin = asinCell ? asinCell.textContent.trim() : '';
+            row.dataset.asinTitle = asinTitleCell ? asinTitleCell.textContent.trim() : '';
+            row.dataset.sku = skuCell ? skuCell.textContent.trim() : '';
+            row.dataset.quantity = quantityCell ? quantityCell.textContent.trim() : '';
+            row.dataset.unitPrice = unitPriceCell ? unitPriceCell.textContent.trim() : '';
+            row.dataset.matchedAt = matchedAtCell ? matchedAtCell.textContent.trim() : '';
+        });
+
+        filteredMatches = [...allMatches];
+        
+        // Initialize pagination
+        setupPagination();
+        showPage(1);
+        
+        // Setup search
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            filterTable(e.target.value);
+        });
+        
+        // Setup single delete modal
+        const deleteModal = document.getElementById('deleteMatchModal');
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            currentMatchId = button.getAttribute('data-match-id');
+        });
+        
+        // Confirm single delete
+        document.getElementById('confirmDeleteSingle').addEventListener('click', function() {
+            deleteSingleMatch(currentMatchId);
+        });
+        
+        // Setup checkbox events
+        document.getElementById('checkAll').addEventListener('change', function() {
+            toggleSelectAll(this);
+        });
+        
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllCheckbox();
+            });
+        });
+    });
+
+    // Filter table based on search input
+    function filterTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+        
+        if (!searchTerm) {
+            filteredMatches = [...allMatches];
+        } else {
+            filteredMatches = allMatches.filter(row => {
+                return (
+                    row.dataset.id.toLowerCase().includes(searchTerm) ||
+                    row.dataset.productName.toLowerCase().includes(searchTerm) ||
+                    row.dataset.asin.toLowerCase().includes(searchTerm) ||
+                    row.dataset.asinTitle.toLowerCase().includes(searchTerm) ||
+                    row.dataset.sku.toLowerCase().includes(searchTerm) ||
+                    row.dataset.quantity.toLowerCase().includes(searchTerm) ||
+                    row.dataset.unitPrice.toLowerCase().includes(searchTerm) ||
+                    row.dataset.matchedAt.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+        
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredMatches.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+        
+        // Reset to first page
+        currentPage = 1;
+        setupPagination();
+        showPage(currentPage);
+    }
+
+    // Sort table
+    function sortTable(columnIndex) {
+        if (sortColumn === columnIndex) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = columnIndex;
+            sortDirection = 'asc';
+        }
+        
+        filteredMatches.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch(columnIndex) {
+                case 2: // Product Name
+                    aValue = a.dataset.productName.toLowerCase();
+                    bValue = b.dataset.productName.toLowerCase();
+                    break;
+                case 3: // ASIN
+                    aValue = a.dataset.asin.toLowerCase();
+                    bValue = b.dataset.asin.toLowerCase();
+                    break;
+                case 4: // ASIN Title
+                    aValue = a.dataset.asinTitle.toLowerCase();
+                    bValue = b.dataset.asinTitle.toLowerCase();
+                    break;
+                case 5: // SKU
+                    aValue = a.dataset.sku.toLowerCase();
+                    bValue = b.dataset.sku.toLowerCase();
+                    break;
+                case 6: // Quantity
+                    aValue = parseFloat(a.dataset.quantity) || 0;
+                    bValue = parseFloat(b.dataset.quantity) || 0;
+                    break;
+                case 7: // Unit Price
+                    aValue = parseFloat(a.dataset.unitPrice.replace('$', '')) || 0;
+                    bValue = parseFloat(b.dataset.unitPrice.replace('$', '')) || 0;
+                    break;
+                case 8: // Matched At
+                    aValue = new Date(a.dataset.matchedAt);
+                    bValue = new Date(b.dataset.matchedAt);
+                    break;
+                default:
+                    return 0;
+            }
+            
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        showPage(currentPage);
+    }
+
+    // Setup pagination
+    function setupPagination() {
+        const totalPages = Math.ceil(filteredMatches.length / rowsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        paginationDiv.innerHTML = '';
+        
+        if (totalPages <= 1) return;
+        
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+        
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+
+    // Change page
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(filteredMatches.length / rowsPerPage)) return;
+        currentPage = page;
+        showPage(page);
+        setupPagination();
+    }
+
+    // Show specific page
+    function showPage(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        
+        // First hide all rows
+        allMatches.forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        // Show only rows for current page from filteredMatches
+        const pageRows = filteredMatches.slice(start, end);
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+        
+        // Also show no result message if no rows
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredMatches.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+    }
+
+    // Toggle select all checkboxes
+    function toggleSelectAll(source) {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        const visibleRows = filteredMatches.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        
+        // Get IDs of visible rows
+        const visibleIds = visibleRows.map(row => {
+            const checkbox = row.querySelector('.row-checkbox');
+            return checkbox ? checkbox.value : null;
+        }).filter(id => id !== null);
+        
+        // Toggle only visible checkboxes
+        checkboxes.forEach(checkbox => {
+            if (visibleIds.includes(checkbox.value)) {
+                checkbox.checked = source.checked;
+            }
+        });
+    }
+
+    // Update select all checkbox based on individual checkboxes
+    function updateSelectAllCheckbox() {
+        const visibleRows = filteredMatches.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        const visibleCheckboxes = visibleRows.map(row => row.querySelector('.row-checkbox')).filter(cb => cb);
+        
+        if (visibleCheckboxes.length === 0) return;
+        
+        const allChecked = visibleCheckboxes.every(cb => cb.checked);
+        const someChecked = visibleCheckboxes.some(cb => cb.checked);
+        
+        const selectAllCheckbox = document.getElementById('checkAll');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+
+    // Delete single match
+    function deleteSingleMatch(matchId) {
+        if (!matchId) return;
+        
+        fetch(`{% url 'dashboard' %}`.replace('0', matchId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove row from table
+                const row = document.getElementById(`match-row-${matchId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allMatches = allMatches.filter(r => r.id !== `match-row-${matchId}`);
+                    filteredMatches = filteredMatches.filter(r => r.id !== `match-row-${matchId}`);
+                    
+                    // Update pagination
+                    setupPagination();
+                    showPage(currentPage);
+                }
+                
+                // Show success message
+                showToast('Success', data.message, 'success');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteMatchModal'));
+                modal.hide();
+            } else {
+                showToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+
+    // Delete multiple matches
+    function deleteMultipleMatches() {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+        
+        if (selectedIds.length === 0) {
+            showToast('Warning', 'Please select at least one match to delete.', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected matched product(s)?`)) {
+            return;
+        }
+        
+        fetch(`{% url 'dashboard' %}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`match-row-${id}`);
+                    if (row) row.remove();
+                });
+                
+                // Update arrays
+                allMatches = allMatches.filter(row => {
+                    const rowId = parseInt(row.id.replace('match-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredMatches = filteredMatches.filter(row => {
+                    const rowId = parseInt(row.id.replace('match-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                
+                // Update pagination
+                setupPagination();
+                showPage(currentPage);
+                
+                // Reset select all checkbox
+                document.getElementById('checkAll').checked = false;
+                document.getElementById('checkAll').indeterminate = false;
+                
+                showToast('Success', data.message, 'success');
+            } else {
+                showToast('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An error occurred during deletion.', 'error');
+        });
+    }
+
+    // Toast notification function
+    function showToast(title, message, type = 'info') {
+        alert(`${title}: ${message}`);
+    }
+
     function viewAsin(asin) {
-        alert('ASIN: ' + asin + '\n\nYou can view ASIN details in the ASINs section.');
+        Swal.fire({
+            title: 'ASIN Details',
+            html: `<div class="text-start">
+                <p><strong>ASIN:</strong> <code>${asin}</code></p>
+                <p>You can view full ASIN details in the ASINs section.</p>
+            </div>`,
+            icon: 'info',
+            confirmButtonText: 'OK'
+        });
     }
 
     function runMatching() {
@@ -172,37 +608,37 @@
                         'Content-Type': 'application/json'
                     }
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            let html = `<div class="text-start">
-                        <h6>Matching Results:</h6>
-                        <ul>
-                            <li>ASIN Matches Created: ${data.asin_matches.products_created || 0}</li>
-                            <li>Total Matches Found: ${data.asin_matches.matches_found || 0}</li>
-                        </ul>
-                        <div class="alert alert-success">
-                            <i class="ri-check-line"></i> Matching completed successfully!
-                        </div>
-                    </div>`;
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let html = `<div class="text-start">
+                            <h6>Matching Results:</h6>
+                            <ul>
+                                <li>ASIN Matches Created: ${data.asin_matches.products_created || 0}</li>
+                                <li>Total Matches Found: ${data.asin_matches.matches_found || 0}</li>
+                            </ul>
+                            <div class="alert alert-success">
+                                <i class="ri-check-line"></i> Matching completed successfully!
+                            </div>
+                        </div>`;
 
-                            Swal.fire({
-                                title: 'Matching Complete!',
-                                html: html,
-                                icon: 'success',
-                                confirmButtonText: 'Refresh Page'
-                            }).then((result) => {
-                                if (result.isConfirmed) {
-                                    window.location.reload();
-                                }
-                            });
-                        } else {
-                            Swal.fire('Error', data.error || 'Matching failed', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire('Error', 'Something went wrong: ' + error.message, 'error');
-                    });
+                        Swal.fire({
+                            title: 'Matching Complete!',
+                            html: html,
+                            icon: 'success',
+                            confirmButtonText: 'Refresh Page'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.reload();
+                            }
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'Matching failed', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'Something went wrong: ' + error.message, 'error');
+                });
             }
         });
     }
@@ -215,4 +651,44 @@
     }, 10000);
     {% endif %}
 </script>
+
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+    
+    .page-link {
+        color: #405189;
+    }
+    
+    .page-link:hover {
+        color: #405189;
+    }
+    
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .table-checkbox {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .noresult {
+        display: none;
+        padding: 2rem 0;
+    }
+    
+    code.bg-light {
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #d63384;
+    }
+</style>
 {% endblock %}

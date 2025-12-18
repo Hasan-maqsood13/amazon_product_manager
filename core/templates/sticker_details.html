@@ -23,7 +23,7 @@
                                 <tr>
                                     <th>Status</th>
                                     <td><span
-                                            class="badge bg-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">{{ sticker.status|title }}</span>
+                                            class="badge bg-{% if sticker.status == 'done' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if sticker.status == 'done' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">{{ sticker.status|title }}</span>
                                     </td>
                                 </tr>
                                 <tr>

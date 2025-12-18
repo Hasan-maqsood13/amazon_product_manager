@@ -14,9 +14,9 @@
                             <div class="row g-4 mb-3">
                                 <div class="col-sm-auto">
                                     <div>
-                                        <button type="button" class="btn btn-success add-btn" data-bs-toggle="modal"
+                                        <button type="button" class="btn btn-success add-btn"
                                             id="create-btn" data-bs-target="#showModal">
-                                            <i class="ri-add-line align-bottom me-1"></i> Add
+                                            <i class="ri-add-line align-bottom me-1"></i> <a href="{% url 'dashboard' %}" style="text-decoration: none; color: rgb(255, 255, 255);">Upload Stickers</a>
                                         </button>
                                         <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleStickers()">
                                             <i class="ri-delete-bin-2-line"></i> Delete Selected
@@ -42,26 +42,26 @@
                                                 </div>
                                             </th>
                                             <th>ID</th>
-                                            <th class="sort" onclick="sortTable(2)">Original Filename</th>
-                                            <th class="sort" onclick="sortTable(3)">Status</th>
-                                            <th class="sort" onclick="sortTable(4)">Upload Date</th>
-                                            <th class="sort" onclick="sortTable(5)">File Size (KB)</th>
+                                            <th>Original Filename</th>
+                                            <th>Status</th>
+                                            <th>Upload Date</th>
+                                            <th>File Size (KB)</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody class="list form-check-all text-center" id="stickerTableBody">
                                         {% for sticker in stickers %}
-                                        <tr id="row-{{ sticker.id }}">
+                                        <tr id="row-{{ sticker.id }}" class="sticker-row">
                                             <th scope="row">
                                                 <div class="form-check">
                                                     <input class="form-check-input row-checkbox" type="checkbox"
                                                            name="chk_child" value="{{ sticker.id }}">
                                                 </div>
                                             </th>
-                                            <td style="color: #868585;"> {{ forloop.counter }}</td>
+                                            <td class="id" style="color: #868585;">{{ forloop.counter }}</td>
                                             <td class="filename">{{ sticker.original_filename }}</td>
                                             <td class="status">
-                                                <span class="badge bg-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if sticker.status == 'processed' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
+                                                <span class="badge bg-{% if sticker.status == 'done' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %}-subtle text-{% if sticker.status == 'done' %}success{% elif sticker.status == 'failed' %}danger{% else %}warning{% endif %} text-uppercase">
                                                     {{ sticker.status|title }}
                                                 </span>
                                             </td>
@@ -73,10 +73,10 @@
                                                         onclick="window.location.href='{% url 'sticker_details' sticker.id %}'">
                                                         View
                                                     </button>
+                                                    <!-- Changed to use SweetAlert directly -->
                                                     <button class="btn btn-sm btn-danger remove-item-btn"
-                                                        data-bs-toggle="modal" data-bs-target="#deleteRecordModal"
-                                                        data-sticker-id="{{ sticker.id }}">
-                                                        Remove
+                                                        onclick="showDeleteStickerConfirmation('{{ sticker.id }}')">
+                                                        <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
                                                 </div>
                                             </td>
@@ -113,31 +113,7 @@
         </div>
     </div>
 </div>
-<!-- Delete Single Record Modal -->
-<div class="modal fade zoomIn" id="deleteRecordModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mt-2 text-center">
-                    <lord-icon src="https://cdn.lordicon.com/gsqyhuek.json" trigger="loop"
-                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
-                    <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
-                        <h4>Are you sure?</h4>
-                        <p class="text-muted mx-4 mb-0">Are you sure you want to remove this record?</p>
-                    </div>
-                </div>
-                <div class="d-flex gap-2 justify-content-center mt-4 mb-2">
-                    <button type="button" class="btn w-sm btn-light" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn w-sm btn-danger" id="confirmDeleteSingle">Yes, Delete It!</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 <script>
     // Global variables
     let currentPage = 1;
@@ -147,6 +123,7 @@
     let currentStickerId = null;
     let sortColumn = null;
     let sortDirection = 'asc';
+    
     // CSRF Token Function
     function getCookie(name) {
         let cookieValue = null;
@@ -163,21 +140,30 @@
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
+    
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         // Get all stickers from table
-        const rows = document.querySelectorAll('#stickerTableBody tr');
-        allStickers = Array.from(rows).filter(row => !row.classList.contains('no-data'));
+        const rows = document.querySelectorAll('#stickerTableBody .sticker-row');
+        allStickers = Array.from(rows);
        
         // Store original data in each row
         allStickers.forEach((row, index) => {
-            row.dataset.index = index;
             const cells = row.querySelectorAll('td');
-            row.dataset.filename = cells[1]?.textContent || '';
-            row.dataset.status = cells[2]?.querySelector('.badge')?.textContent.trim() || '';
-            row.dataset.date = cells[3]?.textContent || '';
-            row.dataset.size = cells[4]?.textContent || '';
+            const idCell = row.querySelector('.id');
+            const filenameCell = row.querySelector('.filename');
+            const statusCell = row.querySelector('.status');
+            const dateCell = row.querySelector('.date');
+            const sizeCell = row.querySelector('.size');
+            
+            row.dataset.index = index;
+            row.dataset.id = idCell ? idCell.textContent.trim() : '';
+            row.dataset.filename = filenameCell ? filenameCell.textContent.trim() : '';
+            row.dataset.status = statusCell ? statusCell.textContent.trim() : '';
+            row.dataset.date = dateCell ? dateCell.textContent.trim() : '';
+            row.dataset.size = sizeCell ? sizeCell.textContent.trim() : '';
         });
+        
         filteredStickers = [...allStickers];
        
         // Initialize pagination
@@ -187,18 +173,6 @@
         // Setup search
         document.getElementById('searchInput').addEventListener('input', function(e) {
             filterTable(e.target.value);
-        });
-       
-        // Setup single delete modal
-        const deleteModal = document.getElementById('deleteRecordModal');
-        deleteModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            currentStickerId = button.getAttribute('data-sticker-id');
-        });
-       
-        // Confirm single delete
-        document.getElementById('confirmDeleteSingle').addEventListener('click', function() {
-            deleteSingleSticker(currentStickerId);
         });
        
         // Setup checkbox events
@@ -213,6 +187,7 @@
             });
         });
     });
+    
     // Filter table based on search input
     function filterTable(searchTerm) {
         searchTerm = searchTerm.toLowerCase();
@@ -222,7 +197,7 @@
         } else {
             filteredStickers = allStickers.filter(row => {
                 return (
-                    row.querySelector('.id').textContent.toLowerCase().includes(searchTerm) ||
+                    row.dataset.id.toLowerCase().includes(searchTerm) ||
                     row.dataset.filename.toLowerCase().includes(searchTerm) ||
                     row.dataset.status.toLowerCase().includes(searchTerm) ||
                     row.dataset.date.toLowerCase().includes(searchTerm) ||
@@ -244,6 +219,7 @@
         setupPagination();
         showPage(currentPage);
     }
+    
     // Sort table
     function sortTable(columnIndex) {
         if (sortColumn === columnIndex) {
@@ -277,15 +253,14 @@
                     return 0;
             }
            
-            if (sortDirection === 'asc') {
-                return aValue > bValue ? 1 : -1;
-            } else {
-                return aValue < bValue ? 1 : -1;
-            }
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
         });
        
         showPage(currentPage);
     }
+    
     // Setup pagination
     function setupPagination() {
         const totalPages = Math.ceil(filteredStickers.length / rowsPerPage);
@@ -297,23 +272,24 @@
         // Previous button
         const prevLi = document.createElement('li');
         prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>`;
+        prevLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage - 1})">Previous</a>`;
         paginationDiv.appendChild(prevLi);
        
         // Page numbers
         for (let i = 1; i <= totalPages; i++) {
             const li = document.createElement('li');
             li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-            li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${i})">${i}</a>`;
             paginationDiv.appendChild(li);
         }
        
         // Next button
         const nextLi = document.createElement('li');
         nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>`;
+        nextLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage + 1})">Next</a>`;
         paginationDiv.appendChild(nextLi);
     }
+    
     // Change page
     function changePage(page) {
         if (page < 1 || page > Math.ceil(filteredStickers.length / rowsPerPage)) return;
@@ -321,39 +297,124 @@
         showPage(page);
         setupPagination();
     }
+    
     // Show specific page
     function showPage(page) {
         const start = (page - 1) * rowsPerPage;
         const end = start + rowsPerPage;
-        const pageRows = filteredStickers.slice(start, end);
-       
-        // Hide all rows
+        
+        // First hide all rows
         allStickers.forEach(row => {
             row.style.display = 'none';
         });
-       
-        // Show only rows for current page
+        
+        // Show only rows for current page from filteredStickers
+        const pageRows = filteredStickers.slice(start, end);
         pageRows.forEach(row => {
             row.style.display = '';
         });
+        
+        // Also show no result message if no rows
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredStickers.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
     }
+    
     // Toggle select all checkboxes
     function toggleSelectAll(source) {
         const checkboxes = document.querySelectorAll('.row-checkbox');
+        const visibleRows = filteredStickers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        
+        // Get IDs of visible rows
+        const visibleIds = visibleRows.map(row => {
+            const checkbox = row.querySelector('.row-checkbox');
+            return checkbox ? checkbox.value : null;
+        }).filter(id => id !== null);
+        
+        // Toggle only visible checkboxes
         checkboxes.forEach(checkbox => {
-            checkbox.checked = source.checked;
+            if (visibleIds.includes(checkbox.value)) {
+                checkbox.checked = source.checked;
+            }
         });
     }
+    
     // Update select all checkbox based on individual checkboxes
     function updateSelectAllCheckbox() {
-        const checkboxes = document.querySelectorAll('.row-checkbox');
-        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+        const visibleRows = filteredStickers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        const visibleCheckboxes = visibleRows.map(row => row.querySelector('.row-checkbox')).filter(cb => cb);
+        
+        if (visibleCheckboxes.length === 0) return;
+        
+        const allChecked = visibleCheckboxes.every(cb => cb.checked);
+        const someChecked = visibleCheckboxes.some(cb => cb.checked);
        
         const selectAllCheckbox = document.getElementById('checkAll');
         selectAllCheckbox.checked = allChecked;
         selectAllCheckbox.indeterminate = someChecked && !allChecked;
     }
+    
+    // Universal SweetAlert confirmation function
+    function showConfirmation(title, text, confirmText, cancelText = 'Cancel') {
+        return Swal.fire({
+            title: title,
+            text: text,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: confirmText,
+            cancelButtonText: cancelText,
+            width: 500,
+            padding: '2em',
+            customClass: {
+                confirmButton: 'btn btn-primary',
+                cancelButton: 'btn btn-danger'
+            },
+            buttonsStyling: false
+        });
+    }
+    
+    // Universal success message function
+    function showSuccessMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'success',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            timerProgressBar: true
+        });
+    }
+    
+    // Universal error message function
+    function showErrorMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'error',
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'OK'
+        });
+    }
+    
+    // Show delete confirmation for single sticker
+    function showDeleteStickerConfirmation(stickerId) {
+        showConfirmation(
+            'Are you sure?',
+            'You won\'t be able to revert this!',
+            'Yes, delete it!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteSingleSticker(stickerId);
+            }
+        });
+    }
+    
     // Delete single sticker
     function deleteSingleSticker(stickerId) {
         if (!stickerId) return;
@@ -382,20 +443,18 @@
                 }
                
                 // Show success message
-                showToast('Success', data.message, 'success');
+                showSuccessMessage('Deleted!', 'Sticker has been deleted successfully.');
                
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRecordModal'));
-                modal.hide();
             } else {
-                showToast('Error', data.message, 'error');
+                showErrorMessage('Error!', data.message || 'Deletion failed');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('Error', 'An error occurred during deletion.', 'error');
+            showErrorMessage('Error!', 'An error occurred during deletion.');
         });
     }
+    
     // Delete multiple stickers
     function deleteMultipleStickers() {
         const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
@@ -403,14 +462,23 @@
             .filter(id => !isNaN(id));
        
         if (selectedIds.length === 0) {
-            showToast('Warning', 'Please select at least one sticker to delete.', 'warning');
+            showErrorMessage('Warning!', 'Please select at least one sticker to delete.');
             return;
         }
        
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected sticker(s)?`)) {
-            return;
-        }
-       
+        showConfirmation(
+            'Are you sure?',
+            `You are about to delete ${selectedIds.length} sticker(s). This action cannot be undone!`,
+            'Yes, delete them!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteMultipleStickersProcess(selectedIds);
+            }
+        });
+    }
+    
+    // Process multiple delete
+    function deleteMultipleStickersProcess(selectedIds) {
         fetch(`{% url 'delete_multiple_stickers' %}`, {
             method: 'POST',
             headers: {
@@ -446,21 +514,15 @@
                 document.getElementById('checkAll').checked = false;
                 document.getElementById('checkAll').indeterminate = false;
                
-                showToast('Success', data.message, 'success');
+                showSuccessMessage('Deleted!', `${selectedIds.length} sticker(s) have been deleted successfully.`);
             } else {
-                showToast('Error', data.message, 'error');
+                showErrorMessage('Error!', data.message || 'Deletion failed');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('Error', 'An error occurred during deletion.', 'error');
+            showErrorMessage('Error!', 'An error occurred during deletion.');
         });
-    }
-    // Toast notification function
-    function showToast(title, message, type = 'info') {
-        // You can integrate with your existing toast system or use a simple alert
-        // For now, using alert but you should replace with proper toast
-        alert(`${title}: ${message}`);
     }
 </script>
 <style>
@@ -489,6 +551,25 @@
     .table-checkbox {
         width: 18px;
         height: 18px;
+    }
+    
+    .noresult {
+        display: none;
+        padding: 2rem 0;
+    }
+    
+    /* SweetAlert custom styles */
+    .swal2-popup {
+        border-radius: 10px !important;
+    }
+    
+    .swal2-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+    }
+    
+    .swal2-html-container {
+        font-size: 1rem !important;
     }
 </style>
 {% endblock %}

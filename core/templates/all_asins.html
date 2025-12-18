@@ -1,59 +1,798 @@
 {% extends 'AB_base.html' %}
-{% block title %}All ASINs{% endblock %}
-
+{% block title %} All ASINs {% endblock %}
 {% block content %}
 <div class="page-content">
     <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title mb-0">All ASINs</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="asinList">
+                            <div class="row g-4 mb-3">
+                                <div class="col-sm-auto">
+                                    <div>
+                                        <button type="button" class="btn btn-success add-btn" id="create-btn" data-bs-target="#showModal">
+                                            <i class="ri-add-line align-bottom me-1"></i> 
+                                            <a href="{% url 'asin_upload_page' %}" style="text-decoration: none; color: rgb(255, 255, 255);">Upload ASINs</a>
+                                        </button>
+                                        <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleAsins()">
+                                            <i class="ri-delete-bin-2-line"></i> Delete Selected
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm">
+                                    <div class="d-flex justify-content-sm-end">
+                                        <div class="search-box ms-2">
+                                            <input type="text" class="form-control search" id="searchInput" placeholder="Search...">
+                                            <i class="ri-search-line search-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1 class="fw-bold">📦 All ASINs</h1>
-                <p class="text-muted">View all ASIN records uploaded by you</p>
-            </div>
-        </div>
+                            <div class="table-responsive table-card mt-3 mb-1">
+                                <table class="table align-middle table-nowrap" id="asinTable">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th scope="col" style="width: 50px;">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleSelectAll(this)">
+                                                </div>
+                                            </th>
+                                            <th>ID</th>
+                                            <th>Title</th>
+                                            <th>Price</th>
+                                            <th>ASIN</th>
+                                            <th>Matches</th>
+                                            <th>Created At</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="list form-check-all text-center" id="asinTableBody">
+                                        {% for asin in asins %}
+                                        <tr id="asin-row-{{ asin.id }}" class="asin-row">
+                                            <th scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input row-checkbox" type="checkbox"
+                                                           name="chk_child" value="{{ asin.id }}">
+                                                </div>
+                                            </th>
+                                            <td class="id" style="color: #868585;">{{ forloop.counter }}</td>
+                                            <td class="title">{{ asin.title|truncatechars:60 }}</td>
+                                            <td class="price">{{ asin.price|default:"N/A" }}</td>
+                                            <td class="asin-code">
+                                                <code class="bg-light p-1 rounded">{{ asin.asin }}</code>
+                                            </td>
+                                            <td class="matches">
+                                                <span class="badge bg-{% if asin.match_count > 0 %}success{% else %}secondary{% endif %}">
+                                                    {{ asin.match_count }} match{{ asin.match_count|pluralize:"es" }}
+                                                </span>
+                                            </td>
+                                            <td class="created_at">{{ asin.created_at|date:"d M, Y H:i" }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2 justify-content-center">
+                                                    <!-- View Button -->
+                                                    <button class="btn btn-sm btn-info view-item-btn"
+                                                        onclick="viewAsinDetails('{{ asin.id }}', '{{ asin.asin }}', '{{ asin.title|escapejs }}', '{{ asin.price|default:"N/A" }}', '{{ asin.match_count }}', '{{ asin.created_at|date:"d M, Y H:i" }}')">
+                                                        <i class="ri-eye-line"></i> View
+                                                    </button>
+                                                   
+                                                    
+                                                   
+                                                    <!-- Remove Button - Now with SweetAlert -->
+                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                        onclick="showDeleteAsinConfirmation('{{ asin.id }}')">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center">No ASINs found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div id="noResult" class="noresult" style="display: none">
+                                    <div class="text-center">
+                                        <lord-icon src="https://cdn.lordicon.com/msoeawqm.json" trigger="loop"
+                                            colors="primary:#121331,secondary:#08a88a"
+                                            style="width:75px;height:75px"></lord-icon>
+                                        <h5 class="mt-2">Sorry! No Result Found</h5>
+                                        <p class="text-muted mb-0">We've searched but did not find any ASINs.</p>
+                                    </div>
+                                </div>
+                            </div>
 
-        <div class="card shadow-lg border-0">
-            <div class="card-body p-4">
-
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Title</th>
-                                <th>Price</th>
-                                <th>ASIN</th>
-                                <th>Matches</th>
-                                <th>Created At</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for asin in asins %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td>{{ asin.title }}</td>
-                                <td>{{ asin.price }}</td>
-                                <td>{{ asin.asin }}</td>
-                                <td>
-                                    <span
-                                        class="badge bg-{% if asin.match_count > 0 %}success{% else %}secondary{% endif %}">
-                                        {{ asin.match_count }} match{{ asin.match_count|pluralize:"es" }}
-                                    </span>
-                                </td>
-                                <td>{{ asin.created_at|date:"Y-m-d H:i" }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No ASINs found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            <!-- Pagination -->
+                            <div class="d-flex justify-content-end mt-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination mb-0" id="pagination">
+                                        <!-- Pagination will be generated by JavaScript -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
             </div>
         </div>
-
     </div>
 </div>
+
+<!-- Edit ASIN Modal -->
+<div class="modal fade" id="editAsinModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="editAsinForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit ASIN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="item_id" name="item_id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">ASIN</label>
+                            <input type="text" class="form-control" name="asin" id="edit_asin" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Price</label>
+                            <input type="text" class="form-control" name="price" id="edit_price" placeholder="e.g., $19.99">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" name="title" id="edit_title" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" onclick="confirmUpdateAsin()">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global variables - Changed to 50 records per page
+    let currentPage = 1;
+    const rowsPerPage = 50; // Changed from 10 to 50
+    let allAsins = [];
+    let filteredAsins = [];
+    let currentAsinId = null;
+    let sortColumn = null;
+    let sortDirection = 'asc';
+
+    // CSRF Token Function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all ASINs from table
+        const rows = document.querySelectorAll('#asinTableBody .asin-row');
+        allAsins = Array.from(rows);
+        
+        // Store original data in each row
+        allAsins.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+            const idCell = row.querySelector('.id');
+            const titleCell = row.querySelector('.title');
+            const priceCell = row.querySelector('.price');
+            const asinCell = row.querySelector('.asin-code');
+            const matchesCell = row.querySelector('.matches');
+            const createdAtCell = row.querySelector('.created_at');
+            
+            row.dataset.index = index;
+            row.dataset.id = idCell ? idCell.textContent.trim() : '';
+            row.dataset.title = titleCell ? titleCell.textContent.trim() : '';
+            row.dataset.price = priceCell ? priceCell.textContent.trim() : '';
+            row.dataset.asin = asinCell ? asinCell.textContent.trim() : '';
+            row.dataset.matches = matchesCell ? matchesCell.textContent.trim() : '';
+            row.dataset.createdAt = createdAtCell ? createdAtCell.textContent.trim() : '';
+        });
+
+        filteredAsins = [...allAsins];
+        
+        // Initialize pagination
+        setupPagination();
+        showPage(1);
+        
+        // Setup search
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            filterTable(e.target.value);
+        });
+        
+        // Setup edit modal
+        const editModal = document.getElementById('editAsinModal');
+        editModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            loadAsinForEdit(button);
+        });
+        
+        // Setup checkbox events
+        document.getElementById('checkAll').addEventListener('change', function() {
+            toggleSelectAll(this);
+        });
+        
+        // Add event listeners to individual checkboxes
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllCheckbox();
+            });
+        });
+    });
+
+    // Filter table based on search input
+    function filterTable(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+        
+        if (!searchTerm) {
+            filteredAsins = [...allAsins];
+        } else {
+            filteredAsins = allAsins.filter(row => {
+                return (
+                    row.dataset.id.toLowerCase().includes(searchTerm) ||
+                    row.dataset.title.toLowerCase().includes(searchTerm) ||
+                    row.dataset.price.toLowerCase().includes(searchTerm) ||
+                    row.dataset.asin.toLowerCase().includes(searchTerm) ||
+                    row.dataset.matches.toLowerCase().includes(searchTerm) ||
+                    row.dataset.createdAt.toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+        
+        // Show/hide no result message
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredAsins.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+        
+        // Reset to first page
+        currentPage = 1;
+        setupPagination();
+        showPage(currentPage);
+    }
+
+    // Sort table
+    function sortTable(columnIndex) {
+        if (sortColumn === columnIndex) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = columnIndex;
+            sortDirection = 'asc';
+        }
+        
+        filteredAsins.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch(columnIndex) {
+                case 2: // Title
+                    aValue = a.dataset.title.toLowerCase();
+                    bValue = b.dataset.title.toLowerCase();
+                    break;
+                case 3: // Price
+                    aValue = parseFloat(a.dataset.price.replace('$', '').replace('USD', '').trim()) || 0;
+                    bValue = parseFloat(b.dataset.price.replace('$', '').replace('USD', '').trim()) || 0;
+                    break;
+                case 4: // ASIN
+                    aValue = a.dataset.asin.toLowerCase();
+                    bValue = b.dataset.asin.toLowerCase();
+                    break;
+                case 5: // Matches
+                    aValue = parseInt(a.dataset.matches) || 0;
+                    bValue = parseInt(b.dataset.matches) || 0;
+                    break;
+                case 6: // Created At
+                    aValue = new Date(a.dataset.createdAt);
+                    bValue = new Date(b.dataset.createdAt);
+                    break;
+                default:
+                    return 0;
+            }
+            
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        showPage(currentPage);
+    }
+
+    // Setup pagination - with 50 per page
+    function setupPagination() {
+        const totalPages = Math.ceil(filteredAsins.length / rowsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        paginationDiv.innerHTML = '';
+        
+        if (totalPages <= 1) return;
+        
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage - 1})">Previous</a>`;
+        paginationDiv.appendChild(prevLi);
+        
+        // Page numbers - show limited pages
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        // Adjust start page if we're near the end
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        // First page
+        if (startPage > 1) {
+            const li = document.createElement('li');
+            li.className = `page-item ${1 === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(1)">1</a>`;
+            paginationDiv.appendChild(li);
+            
+            if (startPage > 2) {
+                const dotsLi = document.createElement('li');
+                dotsLi.className = 'page-item disabled';
+                dotsLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationDiv.appendChild(dotsLi);
+            }
+        }
+        
+        // Middle pages
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${i})">${i}</a>`;
+            paginationDiv.appendChild(li);
+        }
+        
+        // Last page
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const dotsLi = document.createElement('li');
+                dotsLi.className = 'page-item disabled';
+                dotsLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationDiv.appendChild(dotsLi);
+            }
+            
+            const li = document.createElement('li');
+            li.className = `page-item ${totalPages === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${totalPages})">${totalPages}</a>`;
+            paginationDiv.appendChild(li);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="javascript:void(0);" onclick="changePage(${currentPage + 1})">Next</a>`;
+        paginationDiv.appendChild(nextLi);
+    }
+
+    // Change page
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(filteredAsins.length / rowsPerPage)) return;
+        currentPage = page;
+        showPage(page);
+        setupPagination();
+    }
+
+    // Show specific page - 50 records per page
+    function showPage(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        
+        // First hide all rows
+        allAsins.forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        // Show only rows for current page from filteredAsins (50 records)
+        const pageRows = filteredAsins.slice(start, end);
+        pageRows.forEach(row => {
+            row.style.display = '';
+        });
+        
+        // Also show no result message if no rows
+        const noResultDiv = document.getElementById('noResult');
+        if (filteredAsins.length === 0) {
+            noResultDiv.style.display = 'block';
+        } else {
+            noResultDiv.style.display = 'none';
+        }
+        
+        // Show record count
+        const totalRecords = filteredAsins.length;
+        const startRecord = start + 1;
+        const endRecord = Math.min(end, totalRecords);
+        
+        // Update or create record count display
+        let recordCountDiv = document.getElementById('recordCount');
+        if (!recordCountDiv) {
+            recordCountDiv = document.createElement('div');
+            recordCountDiv.id = 'recordCount';
+            recordCountDiv.className = 'text-muted small mt-2';
+            document.querySelector('.table-card').appendChild(recordCountDiv);
+        }
+        recordCountDiv.innerHTML = `Showing ${startRecord} to ${endRecord} of ${totalRecords} records`;
+    }
+
+    // Toggle select all checkboxes - for 50 visible records
+    function toggleSelectAll(source) {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        const visibleRows = filteredAsins.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        
+        // Get IDs of visible rows
+        const visibleIds = visibleRows.map(row => {
+            const checkbox = row.querySelector('.row-checkbox');
+            return checkbox ? checkbox.value : null;
+        }).filter(id => id !== null);
+        
+        // Toggle only visible checkboxes
+        checkboxes.forEach(checkbox => {
+            if (visibleIds.includes(checkbox.value)) {
+                checkbox.checked = source.checked;
+            }
+        });
+    }
+
+    // Update select all checkbox based on individual checkboxes
+    function updateSelectAllCheckbox() {
+        const visibleRows = filteredAsins.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        const visibleCheckboxes = visibleRows.map(row => row.querySelector('.row-checkbox')).filter(cb => cb);
+        
+        if (visibleCheckboxes.length === 0) return;
+        
+        const allChecked = visibleCheckboxes.every(cb => cb.checked);
+        const someChecked = visibleCheckboxes.some(cb => cb.checked);
+        
+        const selectAllCheckbox = document.getElementById('checkAll');
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+
+    // Universal SweetAlert confirmation function
+    function showConfirmation(title, text, confirmText, cancelText = 'Cancel') {
+        return Swal.fire({
+            title: title,
+            text: text,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: confirmText,
+            cancelButtonText: cancelText,
+            width: 500,
+            padding: '2em',
+            customClass: {
+                confirmButton: 'btn btn-primary',
+                cancelButton: 'btn btn-danger'
+            },
+            buttonsStyling: false
+        });
+    }
+    
+    // Universal success message function
+    function showSuccessMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'success',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            timerProgressBar: true
+        });
+    }
+    
+    // Universal error message function
+    function showErrorMessage(title, text) {
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'error',
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'OK'
+        });
+    }
+
+    // View ASIN details
+    function viewAsinDetails(asinId, asinCode, title, price, matches, createdAt) {
+        Swal.fire({
+            title: 'ASIN Details',
+            html: `<div class="text-start">
+                <p><strong>ASIN:</strong> <code class="bg-light p-1 rounded">${asinCode}</code></p>
+                <p><strong>Title:</strong> ${title}</p>
+                <p><strong>Price:</strong> ${price}</p>
+                <p><strong>Matches:</strong> 
+                    <span class="badge bg-${parseInt(matches) > 0 ? 'success' : 'secondary'}">
+                        ${matches} match${parseInt(matches) !== 1 ? 'es' : ''}
+                    </span>
+                </p>
+                <p><strong>Created:</strong> ${createdAt}</p>
+                <div class="mt-3">
+                    <a href="/asin/details/${asinId}/" target="_blank" class="btn btn-sm btn-info">
+                        <i class="ri-external-link-line"></i> View Full Details
+                    </a>
+                </div>
+            </div>`,
+            icon: 'info',
+            confirmButtonText: 'Close',
+            width: '600px'
+        });
+    }
+
+    // Load ASIN for editing
+    function loadAsinForEdit(button) {
+        document.getElementById("item_id").value = button.dataset.itemId;
+        document.getElementById("edit_asin").value = button.dataset.asin;
+        document.getElementById("edit_title").value = button.dataset.title;
+        document.getElementById("edit_price").value = button.dataset.price;
+    }
+
+    // Confirm update ASIN with SweetAlert
+    function confirmUpdateAsin() {
+        showConfirmation(
+            'Update ASIN',
+            'Are you sure you want to update this ASIN?',
+            'Yes, update it!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                updateAsin();
+            }
+        });
+    }
+
+    // Update ASIN
+    function updateAsin() {
+        const form = document.getElementById('editAsinForm');
+        const formData = new FormData(form);
+       
+        fetch("{% url 'dashboard' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrftoken
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showSuccessMessage('Updated!', 'ASIN has been updated successfully.');
+                
+                // Close modal and refresh after delay
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editAsinModal'));
+                if (modal) modal.hide();
+                
+                // Refresh page after 2 seconds
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                showErrorMessage('Error!', data.error || 'Update failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorMessage('Error!', 'An error occurred during update');
+        });
+    }
+
+    // Show delete confirmation for single ASIN
+    function showDeleteAsinConfirmation(asinId) {
+        showConfirmation(
+            'Are you sure?',
+            'You won\'t be able to revert this!',
+            'Yes, delete it!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteSingleAsin(asinId);
+            }
+        });
+    }
+
+    // Delete single ASIN
+    function deleteSingleAsin(asinId) {
+        if (!asinId) return;
+        
+        fetch(`{% url 'dashboard' %}`.replace('0', asinId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove row from table
+                const row = document.getElementById(`asin-row-${asinId}`);
+                if (row) {
+                    row.remove();
+                    // Update arrays
+                    allAsins = allAsins.filter(r => r.id !== `asin-row-${asinId}`);
+                    filteredAsins = filteredAsins.filter(r => r.id !== `asin-row-${asinId}`);
+                    
+                    // Update pagination
+                    setupPagination();
+                    showPage(currentPage);
+                }
+                
+                // Show success message
+                showSuccessMessage('Deleted!', 'ASIN has been deleted successfully.');
+                
+            } else {
+                showErrorMessage('Error!', data.message || 'Deletion failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorMessage('Error!', 'An error occurred during deletion.');
+        });
+    }
+
+    // Delete multiple ASINs
+    function deleteMultipleAsins() {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
+        
+        if (selectedIds.length === 0) {
+            showErrorMessage('Warning!', 'Please select at least one ASIN to delete.');
+            return;
+        }
+        
+        showConfirmation(
+            'Are you sure?',
+            `You are about to delete ${selectedIds.length} ASIN(s). This action cannot be undone!`,
+            'Yes, delete them!'
+        ).then((result) => {
+            if (result.isConfirmed) {
+                deleteMultipleAsinsProcess(selectedIds);
+            }
+        });
+    }
+
+    // Process multiple delete
+    function deleteMultipleAsinsProcess(selectedIds) {
+        fetch(`{% url 'dashboard' %}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove selected rows
+                selectedIds.forEach(id => {
+                    const row = document.getElementById(`asin-row-${id}`);
+                    if (row) row.remove();
+                });
+                
+                // Update arrays
+                allAsins = allAsins.filter(row => {
+                    const rowId = parseInt(row.id.replace('asin-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                filteredAsins = filteredAsins.filter(row => {
+                    const rowId = parseInt(row.id.replace('asin-row-', ''));
+                    return !selectedIds.includes(rowId);
+                });
+                
+                // Update pagination
+                setupPagination();
+                showPage(currentPage);
+                
+                // Reset select all checkbox
+                document.getElementById('checkAll').checked = false;
+                document.getElementById('checkAll').indeterminate = false;
+                
+                showSuccessMessage('Deleted!', `${selectedIds.length} ASIN(s) have been deleted successfully.`);
+            } else {
+                showErrorMessage('Error!', data.message || 'Deletion failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorMessage('Error!', 'An error occurred during deletion.');
+        });
+    }
+</script>
+
+<style>
+    .page-item.active .page-link {
+        background-color: #405189;
+        border-color: #405189;
+    }
+    
+    .page-link {
+        color: #405189;
+    }
+    
+    .page-link:hover {
+        color: #405189;
+    }
+    
+    .sort {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .sort:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .table-checkbox {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .noresult {
+        display: none;
+        padding: 2rem 0;
+    }
+    
+    code.bg-light {
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #d63384;
+        background-color: #f8f9fa !important;
+        padding: 2px 6px !important;
+        border-radius: 4px;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+    
+    /* Record count styling */
+    #recordCount {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-align: right;
+        margin-top: 10px;
+        padding-right: 10px;
+    }
+    
+    /* SweetAlert custom styles */
+    .swal2-popup {
+        border-radius: 10px !important;
+    }
+    
+    .swal2-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+    }
+    
+    .swal2-html-container {
+        font-size: 1rem !important;
+    }
+</style>
+
 {% endblock %}
