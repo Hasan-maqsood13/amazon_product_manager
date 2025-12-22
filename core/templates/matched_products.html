@@ -88,16 +88,6 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                        {% empty %}
-                                        <tr>
-                                            <td colspan="10" class="text-center">
-                                                <div class="text-center py-5">
-                                                    <i class="ri-inbox-line fs-48 text-muted mb-3"></i>
-                                                    <h4 class="text-muted">No Matched Products Found</h4>
-                                                    <p class="text-muted mb-4">There are no matches between your receipt items and ASINs yet.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -121,48 +111,7 @@
                                 </nav>
                             </div>
                         </div>
-                        
-                        <!-- Empty State Cards -->
-                        {% if matched_products.count == 0 %}
-                        <div class="row justify-content-center mt-4">
-                            <div class="col-md-4">
-                                <div class="card mb-3">
-                                    <div class="card-body text-center">
-                                        <i class="ri-file-upload-line fs-32 text-primary mb-2"></i>
-                                        <h6>Upload Receipts</h6>
-                                        <p class="small text-muted">Upload purchase receipts to extract product information</p>
-                                        <a href="{% url 'upload_receipts' %}" class="btn btn-sm btn-primary">
-                                            Upload Receipts
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card mb-3">
-                                    <div class="card-body text-center">
-                                        <i class="ri-barcode-box-line fs-32 text-success mb-2"></i>
-                                        <h6>Upload ASINs</h6>
-                                        <p class="small text-muted">Upload your ASIN list to match with receipt items</p>
-                                        <a href="{% url 'asin_upload_page' %}" class="btn btn-sm btn-success">
-                                            Upload ASINs
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card mb-3">
-                                    <div class="card-body text-center">
-                                        <i class="ri-refresh-line fs-32 text-warning mb-2"></i>
-                                        <h6>Run Matching</h6>
-                                        <p class="small text-muted">Run the matching algorithm to find matches</p>
-                                        <button class="btn btn-sm btn-warning" onclick="runMatching()">
-                                            Run Matching
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
+                    
                     </div>
                 </div>
             </div>

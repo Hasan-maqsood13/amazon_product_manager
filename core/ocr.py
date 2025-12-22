@@ -10,6 +10,8 @@ import easyocr
 import pytesseract
 import io
 from pdf2image import convert_from_bytes  # New import for PDF handling
+from django.conf import settings
+
 
 load_dotenv()
 # OpenAI Client
@@ -52,7 +54,7 @@ def extract_text_from_image(file_content):
 def extract_text_from_pdf(file_content):
     """Local OCR for PDF: Convert to images and OCR each page."""
     try:
-        pages = convert_from_bytes(file_content, dpi=300, poppler_path=r'C:\poppler\Library\bin')  # Apna path daalo, jaise jahan bin folder hai  # High DPI for better accuracy
+        pages = convert_from_bytes(file_content, dpi=300, poppler_path=r'C:\poppler\Library\bin')
         raw_texts = []
         conf_scores = []
         for page_num, page in enumerate(pages, start=1):
