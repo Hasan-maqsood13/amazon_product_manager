@@ -3,7 +3,7 @@
     <!-- LOGO -->
     <div class="navbar-brand-box" style="margin-bottom: 5px; margin-top: 5px;">
         <!-- Dark Logo Text -->
-        <a href="index.html" class="logo logo-dark" style="text-decoration: none;">
+        <a href="{% url 'searchablepanel' %}" class="logo logo-dark" style="text-decoration: none;">
             <span class="logo-sm" style="color: white; font-weight: bold; font-size: 18px;">
                 Amazon Inventory
             </span>
@@ -13,7 +13,7 @@
         </a>
 
         <!-- Light Logo Text -->
-        <a href="index.html" class="logo logo-light" style="text-decoration: none;">
+        <a href="{% url 'searchablepanel' %}" class="logo logo-light" style="text-decoration: none;">
             <span class="logo-sm" style="color: white; font-weight: bold; font-size: 18px;">
                 Amazon Inventory
             </span>
@@ -131,7 +131,7 @@
                             </li>
                             <li class="nav-item">
                                 <a href="{% url 'all_asins' %}" class="nav-link" data-key="t-chat">
-                                    See all CSV's here
+                                    See all CSV's Records here
                                 </a>
                             </li>
                         </ul>

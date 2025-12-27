@@ -73,7 +73,7 @@
                             <div class="card-body p-4">
                                 <div class="text-center mt-2">
                                     <h5 class="text-primary">Welcome Back !</h5>
-                                    <p class="text-muted">Amazone Inventory Tracking Management System</p>
+                                    <p class="text-muted">Amazon Inventory Tracking Management System</p>
                                 </div>
                                 <div class="p-2 mt-4">
                                     <form id="loginForm">
@@ -94,15 +94,14 @@
                                             <div class="position-relative auth-pass-inputgroup mb-3">
                                                 <input type="password" class="form-control pe-5 password-input"
                                                     placeholder="Enter password" name="password" id="password-input" />
-                                                <button
-                                                    class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon material-shadow-none"
-                                                    type="button" id="password-addon">
-                                                    <i class="ri-eye-fill align-middle"></i>
+                                                <button type="button" id="togglePassword"
+                                                    class="btn btn-link position-absolute end-0 top-0 text-muted">
+                                                    <i class="ri-eye-off-line" id="eyeIcon"></i>
                                                 </button>
                                             </div>
                                         </div>
 
-                                        
+
 
                                         <div class="mt-4">
                                             <button type="submit" id="login-btn" class="btn btn-success w-100"
@@ -114,7 +113,7 @@
                                             </button>
                                         </div>
 
-                                        <div class="mt-4 text-center">
+                                        <!-- <div class="mt-4 text-center">
                                             <p class="mb-0">
                                                 Don't have an account ?
                                                 <a href="{% url 'register' %}"
@@ -122,7 +121,7 @@
                                                     Signup
                                                 </a>
                                             </p>
-                                        </div>
+                                        </div> -->
                                     </form>
                                 </div>
                             </div>
@@ -154,8 +153,7 @@
     <script src="{% static 'assets/libs/particles.js/particles.js' %}"></script>
     <!-- particles app js -->
     <script src="{% static 'assets/js/pages/particles.app.js' %}"></script>
-    <!-- password-addon init -->
-    <script src="{% static 'assets/js/pages/password-addon.init.js' %}"></script>
+
 
     <!-- jQuery CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
@@ -192,8 +190,29 @@
             $('#loginForm').on('submit', function (e) {
                 e.preventDefault();
 
+                let email = $('#email').val().trim();
+                let password = $('#password-input').val().trim();
+
+                if (email === '') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Email field is required.',
+                    });
+                    return;
+                }
+
+                if (password === '') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Password field is required.',
+                    });
+                    return;
+                }
+
                 $('#login-spinner').removeClass('d-none');
-                $('#login-text').text('Loading...').removeClass('invisible').addClass('ms-4');
+                $('#login-text').text('Loading...').addClass('ms-4');
                 $('#login-btn').prop('disabled', true);
 
                 let formData = new FormData(this);
@@ -205,11 +224,6 @@
                     processData: false,
                     contentType: false,
                     success: function (response) {
-                      
-                        $('#login-spinner').addClass('d-none');
-                        $('#login-text').removeClass('invisible');
-                        $('#login-btn').prop('disabled', false);
-
                         if (response.success) {
                             Swal.fire({
                                 title: 'Login Successfully.',
@@ -221,8 +235,9 @@
                                 window.location.href = response.next_url;
                             });
                         } else {
-                            $('#login-text').text('Login...').removeClass('invisible').addClass('ms-4');
                             $('#login-spinner').addClass('d-none');
+                            $('#login-text').text('Login').removeClass('ms-4');
+                            $('#login-btn').prop('disabled', false);
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
@@ -232,7 +247,7 @@
                     },
                     error: function () {
                         $('#login-spinner').addClass('d-none');
-                        $('#login-text').removeClass('invisible');
+                        $('#login-text').text('Login').removeClass('ms-4');
                         $('#login-btn').prop('disabled', false);
 
                         Swal.fire({
@@ -243,6 +258,24 @@
                     }
                 });
             });
+        });
+    </script>
+    <script>
+        // PASSWORD TOGGLE (CLEAN & RELIABLE)
+        const togglePassword = document.getElementById("togglePassword");
+        const passwordInput = document.getElementById("password-input");
+        const eyeIcon = document.getElementById("eyeIcon");
+
+        togglePassword.addEventListener("click", function () {
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                eyeIcon.classList.remove("ri-eye-off-line");
+                eyeIcon.classList.add("ri-eye-line");
+            } else {
+                passwordInput.type = "password";
+                eyeIcon.classList.remove("ri-eye-line");
+                eyeIcon.classList.add("ri-eye-off-line");
+            }
         });
     </script>
 </body>

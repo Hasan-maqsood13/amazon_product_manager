@@ -37,6 +37,8 @@ def generate_verification_code(length=4):
     """Generate a random 4-digit numeric code"""
     return str(random.randint(1000, 9999))
 # Create your views here.
+def custom_404(request, exception):
+    return render(request, '404.html', status=404)
 
 
 # Authentication Views
@@ -47,11 +49,11 @@ def register(request):
         password = request.POST.get('password').strip()
         errors = {}
         if not username:
-            errors['name'] = "Name is required."
+            errors['username'] = "Username is required."
         elif not re.match(r'^[A-Za-z ]+$', username):
-            errors['name'] = "Name can only contain letters and spaces."
+            errors['username'] = "Username can only contain letters and spaces."
         elif User.objects.filter(username=username).exists():
-            errors['name'] = "This username is already taken."
+            errors['username'] = "This username is already taken."
         if not email:
             errors['email'] = "Email is required."
         elif User.objects.filter(email=email).exists():

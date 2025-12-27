@@ -73,7 +73,7 @@
                             <div class="card-body p-4">
                                 <div class="text-center mt-2">
                                     <h5 class="text-primary">Create New Account</h5>
-                                    <p class="text-muted">Amazone Inventory Tracking Management System</p>
+                                    <p class="text-muted">Amazon Inventory Tracking Management System</p>
                                 </div>
                                 <div class="p-2 mt-4">
                                     <form class="needs-validation" novalidate="" id="signupForm">
@@ -85,8 +85,8 @@
                                                     class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="username" id="username"
                                                 placeholder="Enter username" required="" />
-                                            {% if errors.name %}
-                                            <div class="text-danger mt-1">{{ errors.name }}</div>
+                                            {% if errors.username %}
+                                            <div class="text-danger mt-1">{{ errors.username }}</div>
                                             {% endif %}
                                         </div>
 
@@ -110,10 +110,9 @@
                                                 {% if errors.password %}
                                                 <div class="text-danger mt-1">{{ errors.password }}</div>
                                                 {% endif %}
-                                                <button
-                                                    class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon material-shadow-none"
-                                                    type="button" id="password-addon">
-                                                    <i class="ri-eye-fill align-middle"></i>
+                                                <button type="button" id="togglePassword"
+                                                    class="btn btn-link position-absolute end-0 top-0 text-muted">
+                                                    <i class="ri-eye-off-line" id="eyeIcon"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -199,6 +198,25 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        // PASSWORD TOGGLE (CLEAN & RELIABLE)
+        const togglePassword = document.getElementById("togglePassword");
+        const passwordInput = document.getElementById("password-input");
+        const eyeIcon = document.getElementById("eyeIcon");
+
+        togglePassword.addEventListener("click", function () {
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                eyeIcon.classList.remove("ri-eye-off-line");
+                eyeIcon.classList.add("ri-eye-line");
+            } else {
+                passwordInput.type = "password";
+                eyeIcon.classList.remove("ri-eye-line");
+                eyeIcon.classList.add("ri-eye-off-line");
+            }
+        });
+    </script>
+
+    <script>
         // CSRF token setup...
         function getCookie(name) {
             let cookieValue = null;
@@ -261,7 +279,7 @@
                             Swal.fire({
                                 icon: "error",
                                 title: "Validation Error",
-                                text: "Please correct the highlighted errors.",
+                                text: Object.values(response.errors).join('\n'),
                             });
                         }
                     },

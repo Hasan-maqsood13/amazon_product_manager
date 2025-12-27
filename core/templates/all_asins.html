@@ -18,9 +18,9 @@
                                             <i class="ri-add-line align-bottom me-1"></i> 
                                             <a href="{% url 'asin_upload_page' %}" style="text-decoration: none; color: rgb(255, 255, 255);">Upload ASINs</a>
                                         </button>
-                                        <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleAsins()">
+                                        <!-- <button class="btn btn-soft-danger" id="delete-multiple-btn" onclick="deleteMultipleAsins()">
                                             <i class="ri-delete-bin-2-line"></i> Delete Selected
-                                        </button>
+                                        </button> -->
                                     </div>
                                 </div>
                                 <div class="col-sm">
@@ -37,11 +37,11 @@
                                 <table class="table align-middle table-nowrap" id="asinTable">
                                     <thead class="table-light text-center">
                                         <tr>
-                                            <th scope="col" style="width: 50px;">
+                                            <!-- <th scope="col" style="width: 50px;">
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleSelectAll(this)">
                                                 </div>
-                                            </th>
+                                            </th> -->
                                             <th>ID</th>
                                             <th>Title</th>
                                             <th>Price</th>
@@ -54,12 +54,12 @@
                                     <tbody class="list form-check-all text-center" id="asinTableBody">
                                         {% for asin in asins %}
                                         <tr id="asin-row-{{ asin.id }}" class="asin-row">
-                                            <th scope="row">
+                                            <!-- <th scope="row">
                                                 <div class="form-check">
                                                     <input class="form-check-input row-checkbox" type="checkbox"
                                                            name="chk_child" value="{{ asin.id }}">
                                                 </div>
-                                            </th>
+                                            </th> -->
                                             <td class="id" style="color: #868585;">{{ forloop.counter }}</td>
                                             <td class="title">{{ asin.title|truncatechars:60 }}</td>
                                             <td class="price">{{ asin.price|default:"N/A" }}</td>
@@ -83,10 +83,10 @@
                                                     
                                                    
                                                     <!-- Remove Button - Now with SweetAlert -->
-                                                    <button class="btn btn-sm btn-danger remove-item-btn"
+                                                    <!-- <button class="btn btn-sm btn-danger remove-item-btn"
                                                         onclick="showDeleteAsinConfirmation('{{ asin.id }}')">
                                                         <i class="ri-delete-bin-line"></i> Remove
-                                                    </button>
+                                                    </button> -->
                                                 </div>
                                             </td>
                                         </tr>
